@@ -1,0 +1,154 @@
+local Kernel = {}
+Kernel.__index = Kernel
+
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local Theme = {
+    Main = Color3.fromRGB(5, 5, 5),
+    Accent = Color3.fromRGB(0, 255, 0),
+    Dark = Color3.fromRGB(15, 15, 15),
+    Outline = Color3.fromRGB(40, 40, 40),
+    Text = Color3.fromRGB(220, 220, 220)
+}
+
+function Kernel.new(title)
+    local self = setmetatable({}, Kernel)
+    
+    self.Gui = Instance.new("ScreenGui", CoreGui)
+    self.Gui.Name = "Phantom_" .. math.random(100, 999)
+    self.Gui.ResetOnSpawn = false
+
+    self.Main = Instance.new("Frame", self.Gui)
+    self.Main.Size = UDim2.new(0, 400, 0, 320)
+    self.Main.Position = UDim2.new(0.5, -200, 0.5, -160)
+    self.Main.BackgroundColor3 = Theme.Main
+    self.Main.BorderSizePixel = 1
+    self.Main.BorderColor3 = Theme.Accent
+
+    self.TitleBar = Instance.new("Frame", self.Main)
+    self.TitleBar.Size = UDim2.new(1, 0, 0, 32)
+    self.TitleBar.BackgroundTransparency = 1
+
+    local TitleLabel = Instance.new("TextLabel", self.TitleBar)
+    TitleLabel.Size = UDim2.new(1, -65, 1, 0)
+    TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+    TitleLabel.Text = "> " .. title:upper()
+    TitleLabel.Font = Enum.Font.Code
+    TitleLabel.TextColor3 = Theme.Accent
+    TitleLabel.TextSize = 14
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.BackgroundTransparency = 1
+
+    local MinBtn = Instance.new("TextButton", self.TitleBar)
+    MinBtn.Size = UDim2.new(0, 32, 0, 32)
+    MinBtn.Position = UDim2.new(1, -32, 0, 0)
+    MinBtn.BackgroundColor3 = Theme.Main
+    MinBtn.BorderSizePixel = 0
+    MinBtn.Text = ""
+    MinBtn.AutoButtonColor = false
+
+    local MinIcon = Instance.new("Frame", MinBtn)
+    MinIcon.Size = UDim2.new(0, 10, 0, 10)
+    MinIcon.Position = UDim2.new(0.5, -5, 0.5, -5)
+    MinIcon.BackgroundColor3 = Theme.Text
+    MinIcon.BorderSizePixel = 0
+
+    self.Minimized = false
+    local originalSize = self.Main.Size
+
+    MinBtn.MouseButton1Click:Connect(function()
+        self.Minimized = not self.Minimized
+        if self.Minimized then
+            self.Container.Visible = false
+            self.Main.Size = UDim2.new(0, 400, 0, 32)
+            MinIcon.Size = UDim2.new(0, 10, 0, 2)
+            MinIcon.Position = UDim2.new(0.5, -5, 0.5, 4)
+        else
+            self.Container.Visible = true
+            self.Main.Size = originalSize
+            MinIcon.Size = UDim2.new(0, 10, 0, 10)
+            MinIcon.Position = UDim2.new(0.5, -5, 0.5, -5)
+        end
+    end)
+
+    MinBtn.MouseEnter:Connect(function() MinBtn.BackgroundTransparency = 0.7 MinBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) end)
+    MinBtn.MouseLeave:Connect(function() MinBtn.BackgroundTransparency = 1 end)
+
+    self.Container = Instance.new("ScrollingFrame", self.Main)
+    self.Container.Size = UDim2.new(1, -16, 1, -45)
+    self.Container.Position = UDim2.new(0, 8, 0, 38)
+    self.Container.BackgroundTransparency = 1
+    self.Container.ScrollBarThickness = 1
+    self.Container.ScrollBarImageColor3 = Theme.Accent
+    self.Container.CanvasSize = UDim2.new(0, 0, 0, 0)
+    
+    local Layout = Instance.new("UIListLayout", self.Container)
+    Layout.Padding = UDim.new(0, 4)
+    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        self.Container.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y)
+    end)
+
+    local dragging, dragStart, startPos
+    self.TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true; dragStart = input.Position; startPos = self.Main.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            self.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+
+    return self
+end
+
+function Kernel:AddButton(text, callback)
+    local Btn = Instance.new("TextButton", self.Container)
+    Btn.Size = UDim2.new(1, 0, 0, 28)
+    Btn.BackgroundColor3 = Theme.Dark
+    Btn.BorderSizePixel = 1
+    Btn.BorderColor3 = Theme.Outline
+    Btn.Text = "[ " .. text .. " ]"
+    Btn.Font = Enum.Font.Code
+    Btn.TextColor3 = Theme.Text
+    Btn.TextSize = 13
+    Btn.AutoButtonColor = false
+
+    Btn.MouseEnter:Connect(function() Btn.BorderColor3 = Theme.Accent Btn.TextColor3 = Theme.Accent end)
+    Btn.MouseLeave:Connect(function() Btn.BorderColor3 = Theme.Outline Btn.TextColor3 = Theme.Text end)
+    Btn.MouseButton1Click:Connect(callback)
+end
+
+function Kernel:AddInput(label, callback)
+    local Frame = Instance.new("Frame", self.Container)
+    Frame.Size = UDim2.new(1, 0, 0, 28)
+    Frame.BackgroundTransparency = 1
+
+    local L = Instance.new("TextLabel", Frame)
+    L.Size = UDim2.new(0, 80, 1, 0)
+    L.Text = label .. " >"
+    L.Font = Enum.Font.Code
+    L.TextColor3 = Theme.Accent
+    L.TextSize = 13
+    L.BackgroundTransparency = 1
+    L.TextXAlignment = Enum.TextXAlignment.Left
+
+    local T = Instance.new("TextBox", Frame)
+    T.Size = UDim2.new(1, -85, 1, 0)
+    T.Position = UDim2.new(0, 85, 0, 0)
+    T.BackgroundColor3 = Theme.Dark
+    T.BorderSizePixel = 1
+    T.BorderColor3 = Theme.Outline
+    T.Text = ""
+    T.Font = Enum.Font.Code
+    T.TextColor3 = Theme.Text
+    T.TextSize = 13
+    
+    T.FocusLost:Connect(function(enter) if enter then callback(T.Text) end end)
+end
+
+return Kernel
