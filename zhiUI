@@ -4,21 +4,15 @@ local CoreGui = game:GetService("CoreGui")
 
 local PaperUI = {
     Themes = {
-        Main = Color3.fromRGB(11, 11, 12),
-        Accent = Color3.fromRGB(0, 255, 200), -- 换个更高级的青绿色
+        Main = Color3.fromRGB(13, 13, 15),
+        Accent = Color3.fromRGB(0, 255, 255),
         Secondary = Color3.fromRGB(20, 20, 23),
-        Card = Color3.fromRGB(28, 28, 32),
-        Text = Color3.fromRGB(240, 240, 245),
-        SubText = Color3.fromRGB(140, 140, 150)
-    },
-    Anims = {
-        Default = TweenInfo.new(0.3, Enum.EasingStyle.Quint),
-        Quick = TweenInfo.new(0.15, Enum.EasingStyle.Quad)
+        Text = Color3.fromRGB(255, 255, 255),
+        SubText = Color3.fromRGB(160, 160, 165)
     }
 }
 
--- 内部工具：快速创建带属性的实例
-function PaperUI:_make(class, props)
+function PaperUI:Create(class, props)
     local inst = Instance.new(class)
     for k, v in pairs(props) do
         if k ~= "Parent" then inst[k] = v end
@@ -27,211 +21,190 @@ function PaperUI:_make(class, props)
     return inst
 end
 
--- 内部工具：添加交互反馈
-function PaperUI:_addHover(obj, goal, original)
-    obj.MouseEnter:Connect(function()
-        TS:Create(obj, self.Anims.Quick, goal):Play()
-    end)
-    obj.MouseLeave:Connect(function()
-        TS:Create(obj, self.Anims.Quick, original):Play()
-    end)
-end
-
 function PaperUI:Init(cfg)
     local config = cfg or {Name = "Paper Ultra"}
-    local Screen = self:_make("ScreenGui", {Name = "Paper_"..math.random(100), Parent = CoreGui, IgnoreGuiInset = true})
+    local Screen = self:Create("ScreenGui", {Name = "Paper_"..math.random(100,999), Parent = CoreGui, IgnoreGuiInset = true})
     
-    local Main = self:_make("Frame", {
+    local Main = self:Create("Frame", {
         Name = "Main",
-        Size = UDim2.new(0, 550, 0, 350),
-        Position = UDim2.new(0.5, -275, 0.5, -175),
+        Size = UDim2.new(0, 520, 0, 330),
+        Position = UDim2.new(0.5, -260, 0.5, -165),
         BackgroundColor3 = self.Themes.Main,
         BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 2,
         Parent = Screen
     })
     
-    self:_make("UICorner", {CornerRadius = UDim.new(0, 12), Parent = Main})
-    local Stroke = self:_make("UIStroke", {Color = self.Themes.Accent, Thickness = 1, Transparency = 0.8, Parent = Main})
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Main})
+    self:Create("UIStroke", {Color = self.Themes.Accent, Thickness = 1.2, Transparency = 0.7, Parent = Main})
 
-    -- 标题栏 (让拖拽更自然)
-    local TitleBar = self:_make("Frame", {
-        Size = UDim2.new(1, 0, 0, 40),
+    local BgImg = self:Create("ImageLabel", {
+        Name = "Background",
+        Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
+        Image = "rbxassetid://100116087542381",
+        ImageTransparency = 0.5,
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 1,
         Parent = Main
     })
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = BgImg})
 
-    local TitleLabel = self:_make("TextLabel", {
-        Size = UDim2.new(1, -20, 1, 0),
-        Position = UDim2.new(0, 15, 0, 0),
-        Text = config.Name,
-        TextColor3 = self.Themes.Text,
-        Font = Enum.Font.GothamBold,
-        TextSize = 14,
-        TextXAlignment = "Left",
-        BackgroundTransparency = 1,
-        Parent = TitleBar
-    })
-
-    -- 侧边栏
-    local Sidebar = self:_make("Frame", {
-        Size = UDim2.new(0, 160, 1, -40),
-        Position = UDim2.new(0, 0, 0, 40),
+    local Minimized = self:Create("TextButton", {
+        Name = "Minimized",
+        Size = UDim2.new(0, 130, 0, 40),
+        Position = UDim2.new(0.5, -65, 0.05, 0),
         BackgroundColor3 = self.Themes.Secondary,
-        BorderSizePixel = 0,
-        Parent = Main
+        Visible = false,
+        Text = config.Name,
+        Font = Enum.Font.GothamMedium,
+        TextColor3 = self.Themes.Accent,
+        TextSize = 13,
+        ZIndex = 10,
+        Parent = Screen
     })
-    self:_make("UICorner", {CornerRadius = UDim.new(0, 12), Parent = Sidebar})
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = Minimized})
+    self:Create("UIStroke", {Color = self.Themes.Accent, Thickness = 1.2, Parent = Minimized})
 
-    local NavScroll = self:_make("ScrollingFrame", {
-        Size = UDim2.new(1, 0, 1, -10),
-        Position = UDim2.new(0, 0, 0, 5),
-        BackgroundTransparency = 1,
-        ScrollBarThickness = 0,
-        Parent = Sidebar
-    })
-    self:_make("UIListLayout", {Padding = UDim.new(0, 4), HorizontalAlignment = "Center", Parent = NavScroll})
-    self:_make("UIPadding", {PaddingTop = UDim.new(0, 5), Parent = NavScroll})
-
-    -- 内容区
-    local ContentContainer = self:_make("Frame", {
-        Size = UDim2.new(1, -170, 1, -50),
-        Position = UDim2.new(0, 170, 0, 45),
-        BackgroundTransparency = 1,
-        Parent = Main
-    })
-
-    -- 拖拽逻辑 (注入到标题栏)
-    local function EnableDrag(gui)
+    local function Drag(obj, target)
         local dragging, startPos, startInput
-        gui.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true; startInput = i.Position; startPos = Main.Position
+        obj.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                startInput = i.Position
+                startPos = target.Position
             end
         end)
         UIS.InputChanged:Connect(function(i)
-            if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
                 local delta = i.Position - startInput
-                TS:Create(Main, TweenInfo.new(0.1), {
-                    Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                }):Play()
+                target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end)
-        UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+        UIS.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
     end
-    EnableDrag(TitleBar)
 
-    local Tabs = { Selected = nil }
+    Drag(Main, Main)
+    Drag(Minimized, Minimized)
+
+    local Sidebar = self:Create("Frame", {
+        Size = UDim2.new(0, 150, 1, 0),
+        BackgroundColor3 = self.Themes.Secondary,
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Parent = Main
+    })
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Sidebar})
+
+    local NavScroll = self:Create("ScrollingFrame", {
+        Size = UDim2.new(1, 0, 1, -60),
+        Position = UDim2.new(0, 0, 0, 50),
+        BackgroundTransparency = 1,
+        ScrollBarThickness = 0,
+        ZIndex = 4,
+        Parent = Sidebar
+    })
+    self:Create("UIListLayout", {Padding = UDim.new(0, 5), HorizontalAlignment = "Center", Parent = NavScroll})
+
+    local Content = self:Create("Frame", {
+        Size = UDim2.new(1, -165, 1, -50),
+        Position = UDim2.new(0, 160, 0, 45),
+        BackgroundTransparency = 1,
+        ZIndex = 3,
+        Parent = Main
+    })
+
+    local MinBtn = self:Create("TextButton", {
+        Size = UDim2.new(0, 30, 0, 30),
+        Position = UDim2.new(1, -35, 0, 8),
+        BackgroundTransparency = 1,
+        Text = "—",
+        TextColor3 = self.Themes.SubText,
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        ZIndex = 5,
+        Parent = Main
+    })
+
+    MinBtn.MouseButton1Click:Connect(function()
+        Main.Visible = false
+        Minimized.Visible = true
+    end)
+
+    Minimized.MouseButton1Click:Connect(function()
+        Minimized.Visible = false
+        Main.Visible = true
+    end)
+
+    local Tabs = {}
 
     function Tabs:NewTab(name)
-        local TabBtn = PaperUI:_make("TextButton", {
-            Size = UDim2.new(0, 145, 0, 32),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BackgroundTransparency = 1,
+        local TabBtn = PaperUI:Create("TextButton", {
+            Size = UDim2.new(0, 135, 0, 34),
+            BackgroundColor3 = Color3.fromRGB(30, 30, 35),
             Text = name,
             TextColor3 = PaperUI.Themes.SubText,
             Font = Enum.Font.GothamMedium,
             TextSize = 13,
+            ZIndex = 5,
             Parent = NavScroll
         })
-        PaperUI:_make("UICorner", {CornerRadius = UDim.new(0, 6), Parent = TabBtn})
-        
-        local Page = PaperUI:_make("ScrollingFrame", {
+        PaperUI:Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = TabBtn})
+
+        local Page = PaperUI:Create("ScrollingFrame", {
             Size = UDim2.new(1, 0, 1, 0),
             BackgroundTransparency = 1,
             Visible = false,
-            ScrollBarThickness = 2,
-            ScrollBarImageColor3 = PaperUI.Themes.Accent,
-            Parent = ContentContainer
+            ScrollBarThickness = 0,
+            ZIndex = 4,
+            Parent = Content
         })
-        PaperUI:_make("UIListLayout", {Padding = UDim.new(0, 8), Parent = Page})
-        PaperUI:_make("UIPadding", {PaddingRight = UDim.new(0, 5), Parent = Page})
+        PaperUI:Create("UIListLayout", {Padding = UDim.new(0, 8), Parent = Page})
 
         TabBtn.MouseButton1Click:Connect(function()
-            if Tabs.Selected == TabBtn then return end
-            for _, v in pairs(ContentContainer:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
-            for _, v in pairs(NavScroll:GetChildren()) do 
-                if v:IsA("TextButton") then 
-                    TS:Create(v, PaperUI.Anims.Default, {BackgroundTransparency = 1, TextColor3 = PaperUI.Themes.SubText}):Play() 
-                end 
-            end
-            Tabs.Selected = TabBtn
+            for _, v in pairs(Content:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
+            for _, v in pairs(NavScroll:GetChildren()) do if v:IsA("TextButton") then TS:Create(v, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.SubText}):Play() end end
             Page.Visible = true
-            TS:Create(TabBtn, PaperUI.Anims.Default, {BackgroundTransparency = 0.9, TextColor3 = PaperUI.Themes.Accent}):Play()
+            TS:Create(TabBtn, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.Accent}):Play()
         end)
 
-        -- 首次自动选中
-        if not Tabs.Selected then 
-            Page.Visible = true 
-            Tabs.Selected = TabBtn
+        if #Content:GetChildren() == 1 then
+            Page.Visible = true
             TabBtn.TextColor3 = PaperUI.Themes.Accent
-            TabBtn.BackgroundTransparency = 0.9
         end
 
         local Modules = {}
-
-        -- 现代风格按钮
         function Modules:AddButton(txt, cb)
-            local b = PaperUI:_make("TextButton", {
-                Size = UDim2.new(1, 0, 0, 38),
-                BackgroundColor3 = PaperUI.Themes.Card,
-                Text = "",
-                AutoButtonColor = false,
-                Parent = Page
-            })
-            PaperUI:_make("UICorner", {CornerRadius = UDim.new(0, 8), Parent = b})
-            local l = PaperUI:_make("TextLabel", {
-                Size = UDim2.new(1, -20, 1, 0),
-                Position = UDim2.new(0, 12, 0, 0),
-                Text = txt,
+            local b = PaperUI:Create("TextButton", {
+                Size = UDim2.new(1, -10, 0, 38),
+                BackgroundColor3 = PaperUI.Themes.Secondary,
+                Text = "  " .. txt,
                 TextColor3 = PaperUI.Themes.Text,
                 Font = Enum.Font.Gotham,
                 TextSize = 13,
                 TextXAlignment = "Left",
-                BackgroundTransparency = 1,
-                Parent = b
+                ZIndex = 6,
+                Parent = Page
             })
-            
-            PaperUI:_addHover(b, {BackgroundColor3 = Color3.fromRGB(35, 35, 40)}, {BackgroundColor3 = PaperUI.Themes.Card})
-            b.MouseButton1Down:Connect(function() 
-                TS:Create(b, PaperUI.Anims.Quick, {Size = UDim2.new(1, -4, 0, 36)}):Play()
-                cb()
-                task.wait(0.1)
-                TS:Create(b, PaperUI.Anims.Quick, {Size = UDim2.new(1, 0, 0, 38)}):Play()
-            end)
+            PaperUI:Create("UICorner", {Parent = b})
+            b.MouseButton1Click:Connect(cb)
         end
 
-        -- 平滑滑动 Toggle
         function Modules:AddToggle(txt, def, cb)
-            local state = def
-            local t = PaperUI:_make("Frame", {Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = PaperUI.Themes.Card, Parent = Page})
-            PaperUI:_make("UICorner", {CornerRadius = UDim.new(0, 8), Parent = t})
-            
-            local l = PaperUI:_make("TextLabel", {
-                Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 12, 0, 0),
-                Text = txt, BackgroundTransparency = 1, TextColor3 = PaperUI.Themes.Text,
-                Font = Enum.Font.Gotham, TextSize = 13, TextXAlignment = "Left", Parent = t
-            })
-
-            local Bg = PaperUI:_make("Frame", {
-                Size = UDim2.new(0, 34, 0, 18), Position = UDim2.new(1, -45, 0.5, -9),
-                BackgroundColor3 = state and PaperUI.Themes.Accent or Color3.fromRGB(50, 50, 55), Parent = t
-            })
-            PaperUI:_make("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Bg})
-
-            local Dot = PaperUI:_make("Frame", {
-                Size = UDim2.new(0, 12, 0, 12),
-                Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6),
-                BackgroundColor3 = Color3.new(1, 1, 1), Parent = Bg
-            })
-            PaperUI:_make("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Dot})
-
-            local btn = PaperUI:_make("TextButton", {Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", Parent = t})
-            
+            local t = PaperUI:Create("Frame", {Size = UDim2.new(1, -10, 0, 40), BackgroundColor3 = PaperUI.Themes.Secondary, ZIndex = 6, Parent = Page})
+            PaperUI:Create("UICorner", {Parent = t})
+            local l = PaperUI:Create("TextLabel", {Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 15, 0, 0), Text = txt, BackgroundTransparency = 1, TextColor3 = PaperUI.Themes.Text, TextXAlignment = "Left", ZIndex = 7, Parent = t})
+            local s = def
+            local btn = PaperUI:Create("TextButton", {Size = UDim2.new(0, 36, 0, 20), Position = UDim2.new(1, -45, 0.5, -10), Text = "", BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(45,45,50), ZIndex = 7, Parent = t})
+            PaperUI:Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
             btn.MouseButton1Click:Connect(function()
-                state = not state
-                TS:Create(Bg, PaperUI.Anims.Quick, {BackgroundColor3 = state and PaperUI.Themes.Accent or Color3.fromRGB(50, 50, 55)}):Play()
-                TS:Create(Dot, PaperUI.Anims.Quick, {Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)}):Play()
-                cb(state)
+                s = not s
+                TS:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(45,45,50)}):Play()
+                cb(s)
             end)
         end
 
