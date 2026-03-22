@@ -1,177 +1,234 @@
-local zhiUI = {}
-zhiUI.__index = zhiUI
-
 local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local TS = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
-local Theme = {
-    Main = Color3.fromRGB(12, 12, 12),
-    Dark = Color3.fromRGB(25, 25, 25),
-    Accent = Color3.fromRGB(0, 255, 127),
-    Outline = Color3.fromRGB(45, 45, 45),
-    Text = Color3.fromRGB(245, 245, 245)
+local PaperUI = {
+    Themes = {
+        Main = Color3.fromRGB(10, 10, 12),
+        Accent = Color3.fromRGB(0, 255, 255),
+        Secondary = Color3.fromRGB(20, 20, 25),
+        Text = Color3.fromRGB(240, 240, 240),
+        Danger = Color3.fromRGB(255, 60, 60)
+    }
 }
 
-function zhiUI.new(title)
-    local self = setmetatable({}, zhiUI)
-    
-    self.Gui = Instance.new("ScreenGui", CoreGui)
-    self.Gui.Name = "zhiUI_" .. math.random(100, 999)
-    self.Gui.ResetOnSpawn = false
-    
-    self.Main = Instance.new("Frame", self.Gui)
-    self.Main.Size = UDim2.new(0, 360, 0, 300)
-    self.Main.Position = UDim2.new(0.5, -180, 0.5, -150)
-    self.Main.BackgroundColor3 = Theme.Main
-    self.Main.BorderSizePixel = 1
-    self.Main.BorderColor3 = Theme.Accent
-    
-    Instance.new("UICorner", self.Main).CornerRadius = UDim.new(0, 6)
+function PaperUI:Create(class, props)
+    local inst = Instance.new(class)
+    for k, v in pairs(props) do
+        if k ~= "Parent" then inst[k] = v end
+    end
+    inst.Parent = props.Parent
+    return inst
+end
 
-    self.TitleBar = Instance.new("Frame", self.Main)
-    self.TitleBar.Size = UDim2.new(1, 0, 0, 32)
-    self.TitleBar.BackgroundTransparency = 1
+function PaperUI:Init(cfg)
+    local config = cfg or {Name = "Paper Ultra"}
+    local Screen = self:Create("ScreenGui", {Name = "Paper_"..math.random(100,999), Parent = CoreGui, IgnoreGuiInset = true})
     
-    local TitleLabel = Instance.new("TextLabel", self.TitleBar)
-    TitleLabel.Size = UDim2.new(1, -12, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 12, 0, 0)
-    TitleLabel.Text = "PHANTOM // " .. title:upper()
-    TitleLabel.Font = Enum.Font.Code
-    TitleLabel.TextColor3 = Theme.Accent
-    TitleLabel.TextSize = 14
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.BackgroundTransparency = 1
+    local Main = self:Create("Frame", {
+        Name = "Main",
+        Size = UDim2.new(0, 560, 0, 390),
+        Position = UDim2.new(0.5, -280, 0.5, -195),
+        BackgroundColor3 = self.Themes.Main,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = Screen
+    })
+    
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Main})
+    self:Create("UIStroke", {Color = self.Themes.Accent, Thickness = 1.6, Transparency = 0.4, Parent = Main})
 
-    self.Container = Instance.new("ScrollingFrame", self.Main)
-    self.Container.Size = UDim2.new(1, -20, 1, -45)
-    self.Container.Position = UDim2.new(0, 10, 0, 38)
-    self.Container.BackgroundTransparency = 1
-    self.Container.ScrollBarThickness = 2
-    self.Container.ScrollBarImageColor3 = Theme.Accent
-    
-    local Layout = Instance.new("UIListLayout", self.Container)
-    Layout.Padding = UDim.new(0, 6)
-    Layout.SortOrder = Enum.SortOrder.LayoutOrder
-    
-    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        self.Container.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y)
-    end)
-
-    local dragging, dragStart, startPos
-    self.TitleBar.InputBegan:Connect(function(input)
+    local dragging, dragInput, dragStart, startPos
+    Main.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true; dragStart = input.Position; startPos = self.Main.Position
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
         end
     end)
     UIS.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
             local delta = input.Position - dragStart
-            self.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            TS:Create(Main, TweenInfo.new(0.12, Enum.EasingStyle.Quint), {
+                Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            }):Play()
         end
     end)
-    UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
-
-    return self
-end
-
-function zhiUI:AddToggle(text, callback)
-    local TFrame = Instance.new("TextButton", self.Container)
-    TFrame.Size = UDim2.new(1, 0, 0, 32)
-    TFrame.BackgroundColor3 = Theme.Dark
-    TFrame.Text = "  " .. text
-    TFrame.Font = Enum.Font.Code
-    TFrame.TextColor3 = Theme.Text
-    TFrame.TextSize = 13
-    TFrame.TextXAlignment = "Left"
-    Instance.new("UICorner", TFrame).CornerRadius = UDim.new(0, 4)
-
-    local Track = Instance.new("Frame", TFrame)
-    Track.Size = UDim2.new(0, 34, 0, 16)
-    Track.Position = UDim2.new(1, -42, 0.5, -8)
-    Track.BackgroundColor3 = Theme.Outline
-    Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0)
-
-    local Dot = Instance.new("Frame", Track)
-    Dot.Size = UDim2.new(0, 12, 0, 12)
-    Dot.Position = UDim2.new(0, 2, 0.5, -6)
-    Dot.BackgroundColor3 = Theme.Text
-    Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
-
-    local state = false
-    TFrame.MouseButton1Click:Connect(function()
-        state = not state
-        TweenService:Create(Dot, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {
-            Position = state and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6),
-            BackgroundColor3 = state and Theme.Accent or Theme.Text
-        }):Play()
-        callback(state)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
-end
 
-function zhiUI:AddSlider(text, min, max, default, callback)
-    local SFrame = Instance.new("Frame", self.Container)
-    SFrame.Size = UDim2.new(1, 0, 0, 42)
-    SFrame.BackgroundTransparency = 1
+    local Sidebar = self:Create("Frame", {
+        Size = UDim2.new(0, 165, 1, 0),
+        BackgroundColor3 = self.Themes.Secondary,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        Parent = Main
+    })
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Sidebar})
+    
+    local Title = self:Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 55),
+        Text = config.Name,
+        TextColor3 = self.Themes.Accent,
+        Font = Enum.Font.GothamBold,
+        TextSize = 17,
+        BackgroundTransparency = 1,
+        ZIndex = 3,
+        Parent = Sidebar
+    })
 
-    local Title = Instance.new("TextLabel", SFrame)
-    Title.Text = "  " .. text .. ": " .. default
-    Title.Size = UDim2.new(1, 0, 0, 20)
-    Title.TextColor3 = Theme.Text
-    Title.BackgroundTransparency = 1
-    Title.TextXAlignment = "Left"
-    Title.Font = Enum.Font.Code
+    local BtnContainer = self:Create("ScrollingFrame", {
+        Size = UDim2.new(1, 0, 1, -65),
+        Position = UDim2.new(0, 0, 0, 55),
+        BackgroundTransparency = 1,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollBarThickness = 0,
+        ZIndex = 3,
+        Parent = Sidebar
+    })
+    self:Create("UIListLayout", {Padding = UDim.new(0, 6), HorizontalAlignment = "Center", Parent = BtnContainer})
 
-    local Bar = Instance.new("TextButton", SFrame)
-    Bar.Size = UDim2.new(1, -10, 0, 4)
-    Bar.Position = UDim2.new(0, 5, 0, 28)
-    Bar.BackgroundColor3 = Theme.Dark
-    Bar.Text = ""
-    Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+    local Content = self:Create("Frame", {
+        Size = UDim2.new(1, -175, 1, -50),
+        Position = UDim2.new(0, 170, 0, 45),
+        BackgroundTransparency = 1,
+        ZIndex = 2,
+        Parent = Main
+    })
 
-    local Fill = Instance.new("Frame", Bar)
-    Fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
-    Fill.BackgroundColor3 = Theme.Accent
-    Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+    local TopBar = self:Create("Frame", {
+        Size = UDim2.new(1, -165, 0, 40),
+        Position = UDim2.new(0, 165, 0, 0),
+        BackgroundTransparency = 1,
+        ZIndex = 4,
+        Parent = Main
+    })
 
-    local function Update()
-        local mousePos = UIS:GetMouseLocation().X
-        local barPos = Bar.AbsolutePosition.X
-        local barSize = Bar.AbsoluteSize.X
-        local percent = math.clamp((mousePos - barPos) / barSize, 0, 1)
-        Fill.Size = UDim2.new(percent, 0, 1, 0)
-        local val = math.floor(min + (max - min) * percent)
-        Title.Text = "  " .. text .. ": " .. tostring(val)
-        callback(val)
+    local Close = self:Create("TextButton", {
+        Size = UDim2.new(0, 30, 0, 25),
+        Position = UDim2.new(1, -35, 0, 8),
+        BackgroundColor3 = self.Themes.Danger,
+        Text = "×",
+        TextColor3 = self.Themes.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        ZIndex = 5,
+        Parent = TopBar
+    })
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = Close})
+
+    local Min = self:Create("TextButton", {
+        Size = UDim2.new(0, 30, 0, 25),
+        Position = UDim2.new(1, -70, 0, 8),
+        BackgroundColor3 = Color3.fromRGB(45, 45, 50),
+        Text = "-",
+        TextColor3 = self.Themes.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 18,
+        ZIndex = 5,
+        Parent = TopBar
+    })
+    self:Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = Min})
+
+    local IsMin = false
+    Min.MouseButton1Click:Connect(function()
+        IsMin = not IsMin
+        local targetSize = IsMin and UDim2.new(0, 165, 0, 55) or UDim2.new(0, 560, 0, 390)
+        TS:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = targetSize}):Play()
+        Min.Text = IsMin and "+" or "-"
+        Content.Visible = not IsMin
+    end)
+
+    Close.MouseButton1Click:Connect(function()
+        TS:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0), BackgroundTransparency = 1}):Play()
+        task.wait(0.25)
+        Screen:Destroy()
+    end)
+
+    local Tabs = {}
+
+    function Tabs:SetBackground(id, trans)
+        local bg = PaperUI:Create("ImageLabel", {
+            Size = UDim2.new(1, 0, 1, 0),
+            Image = "rbxassetid://" .. tostring(id:match("%d+")),
+            ImageTransparency = trans or 0.5,
+            ScaleType = "Crop",
+            BackgroundColor3 = Color3.new(0,0,0),
+            ZIndex = 1,
+            Parent = Main
+        })
+        PaperUI:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = bg})
     end
 
-    Bar.MouseButton1Down:Connect(function()
-        local move = UIS.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement then Update() end
+    function Tabs:NewTab(name)
+        local TButton = PaperUI:Create("TextButton", {
+            Size = UDim2.new(0, 145, 0, 38),
+            BackgroundColor3 = PaperUI.Themes.Main,
+            Text = name,
+            TextColor3 = PaperUI.Themes.Text,
+            Font = Enum.Font.GothamMedium,
+            TextSize = 14,
+            AutoButtonColor = false,
+            ZIndex = 4,
+            Parent = BtnContainer
+        })
+        PaperUI:Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = TButton})
+        PaperUI:Create("UIStroke", {Color = PaperUI.Themes.Accent, Thickness = 1, Transparency = 0.8, Parent = TButton})
+
+        local Page = PaperUI:Create("ScrollingFrame", {
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 1,
+            Visible = false,
+            ScrollBarThickness = 2,
+            ZIndex = 3,
+            Parent = Content
+        })
+        PaperUI:Create("UIListLayout", {Padding = UDim.new(0, 10), Parent = Page})
+
+        TButton.MouseButton1Click:Connect(function()
+            for _, v in pairs(Content:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
+            for _, v in pairs(BtnContainer:GetChildren()) do if v:IsA("TextButton") then TS:Create(v, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.Text}):Play() end end
+            Page.Visible = true
+            TS:Create(TButton, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.Accent}):Play()
         end)
-        UIS.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then move:Disconnect() end
-        end)
-    end)
+
+        local Modules = {}
+
+        function Modules:AddButton(txt, cb)
+            local b = PaperUI:Create("TextButton", {
+                Size = UDim2.new(1, -10, 0, 40),
+                BackgroundColor3 = PaperUI.Themes.Secondary,
+                Text = txt,
+                TextColor3 = PaperUI.Themes.Text,
+                Font = Enum.Font.Gotham,
+                TextSize = 13,
+                ZIndex = 4,
+                Parent = Page
+            })
+            PaperUI:Create("UICorner", {Parent = b})
+            b.MouseButton1Click:Connect(cb)
+        end
+
+        function Modules:AddToggle(txt, def, cb)
+            local t = PaperUI:Create("Frame", {Size = UDim2.new(1, -10, 0, 45), BackgroundColor3 = PaperUI.Themes.Secondary, ZIndex = 4, Parent = Page})
+            PaperUI:Create("UICorner", {Parent = t})
+            local l = PaperUI:Create("TextLabel", {Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 15, 0, 0), Text = txt, BackgroundTransparency = 1, TextColor3 = PaperUI.Themes.Text, TextXAlignment = "Left", ZIndex = 5, Parent = t})
+            local s = def
+            local b = PaperUI:Create("TextButton", {Size = UDim2.new(0, 45, 0, 22), Position = UDim2.new(1, -55, 0.5, -11), Text = "", BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(50,50,55), ZIndex = 5, Parent = t})
+            PaperUI:Create("UICorner", {CornerRadius = UDim.new(1,0), Parent = b})
+            b.MouseButton1Click:Connect(function()
+                s = not s
+                TS:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(50,50,55)}):Play()
+                cb(s)
+            end)
+        end
+
+        return Modules
+    end
+
+    return Tabs
 end
 
-function zhiUI:AddButton(text, callback)
-    local Btn = Instance.new("TextButton", self.Container)
-    Btn.Size = UDim2.new(1, 0, 0, 30)
-    Btn.BackgroundColor3 = Theme.Dark
-    Btn.Text = "[ " .. text:upper() .. " ]"
-    Btn.Font = Enum.Font.Code
-    Btn.TextColor3 = Theme.Text
-    Btn.TextSize = 13
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
-    
-    Btn.MouseButton1Down:Connect(function()
-        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(1, -4, 0, 28)}):Play()
-    end)
-    Btn.MouseButton1Up:Connect(function()
-        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 30)}):Play()
-        callback()
-    end)
-end
-
-return zhiUI
+return PaperUI
