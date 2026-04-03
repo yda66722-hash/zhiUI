@@ -1,220 +1,94 @@
-local UIS = game:GetService("UserInputService")
-local TS = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
-local PaperUI = {
-    Themes = {
-        Main = Color3.fromRGB(13, 13, 15),
-        Accent = Color3.fromRGB(255, 255, 255),
-        Secondary = Color3.fromRGB(20, 20, 23),
-        Text = Color3.fromRGB(255, 255, 255),
-        SubText = Color3.fromRGB(160, 160, 165)
-    }
+local UI = {}
+UI.Theme = {
+    Background = Color3.fromRGB(20, 20, 20),
+    Sidebar = Color3.fromRGB(25, 25, 25),
+    Accent = Color3.fromRGB(0, 162, 255),
+    Text = Color3.fromRGB(240, 240, 240),
+    TextSecondary = Color3.fromRGB(150, 150, 150),
+    Corner = UDim.new(0, 10)
 }
 
-function PaperUI:Create(class, props)
-    local inst = Instance.new(class)
-    for k, v in pairs(props) do
-        if k ~= "Parent" then inst[k] = v end
-    end
-    inst.Parent = props.Parent
-    return inst
+-- 核心工具：创建带圆角的容器
+function UI:CreateBase(parent)
+    local Main = Instance.new("Frame")
+    Main.Name = "ExecutorMain"
+    Main.Size = UDim2.fromOffset(550, 350)
+    Main.Position = UDim2.fromScale(0.5, 0.5)
+    Main.AnchorPoint = Vector2.new(0.5, 0.5)
+    Main.BackgroundColor3 = self.Theme.Background
+    Main.BorderSizePixel = 0
+    Main.Parent = parent
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = self.Theme.Corner
+    Corner.Parent = Main
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(45, 45, 45)
+    Stroke.Thickness = 1
+    Stroke.Parent = Main
+
+    return Main
 end
 
-function PaperUI:Init(cfg)
-    local config = cfg or {Name = "Paper Ultra"}
-    local Screen = self:Create("ScreenGui", {Name = "Paper_"..math.random(100,999), Parent = CoreGui, IgnoreGuiInset = true})
-    
-    local Main = self:Create("Frame", {
-        Name = "Main",
-        Size = UDim2.new(0, 520, 0, 330),
-        Position = UDim2.new(0.5, -260, 0.5, -165),
-        BackgroundColor3 = self.Themes.Main,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        ZIndex = 2,
-        Parent = Screen
-    })
-    
-    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Main})
+-- 侧边栏逻辑
+function UI:CreateSidebar(parent)
+    local Sidebar = Instance.new("Frame")
+    Sidebar.Name = "Sidebar"
+    Sidebar.Size = UDim2.new(0, 150, 1, 0)
+    Sidebar.BackgroundColor3 = self.Theme.Sidebar
+    Sidebar.BorderSizePixel = 0
+    Sidebar.Parent = parent
 
-    local BgImg = self:Create("ImageLabel", {
-        Name = "Background",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Image = "",
-        ImageTransparency = 0.5,
-        ScaleType = Enum.ScaleType.Crop,
-        ZIndex = 1,
-        Parent = Main
-    })
-    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = BgImg})
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = self.Theme.Corner
+    Corner.Parent = Sidebar
 
-    local Minimized = self:Create("TextButton", {
-        Name = "Minimized",
-        Size = UDim2.new(0, 130, 0, 40),
-        Position = UDim2.new(0.5, -65, 0.05, 0),
-        BackgroundColor3 = self.Themes.Secondary,
-        Visible = false,
-        Text = config.Name,
-        Font = Enum.Font.GothamMedium,
-        TextColor3 = self.Themes.Accent,
-        TextSize = 13,
-        ZIndex = 10,
-        Parent = Screen
-    })
-    self:Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = Minimized})
+    local Layout = Instance.new("UIListLayout")
+    Layout.Parent = Sidebar
+    Layout.Padding = UDim.new(0, 5)
+    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    local function Drag(obj, target)
-        local dragging, startPos, startInput
-        obj.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                startInput = i.Position
-                startPos = target.Position
-            end
-        end)
-        UIS.InputChanged:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-                local delta = i.Position - startInput
-                target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
-        end)
-        UIS.InputEnded:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
-        end)
-    end
+    local Padding = Instance.new("UIPadding")
+    Padding.PaddingTop = UDim.new(0, 10)
+    Padding.Parent = Sidebar
 
-    Drag(Main, Main)
-    Drag(Minimized, Minimized)
-
-    local Sidebar = self:Create("Frame", {
-        Size = UDim2.new(0, 150, 1, 0),
-        BackgroundColor3 = self.Themes.Secondary,
-        BackgroundTransparency = 0.15,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-        Parent = Main
-    })
-    self:Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Sidebar})
-
-    local NavScroll = self:Create("ScrollingFrame", {
-        Size = UDim2.new(1, 0, 1, -60),
-        Position = UDim2.new(0, 0, 0, 50),
-        BackgroundTransparency = 1,
-        ScrollBarThickness = 0,
-        ZIndex = 4,
-        Parent = Sidebar
-    })
-    self:Create("UIListLayout", {Padding = UDim.new(0, 5), HorizontalAlignment = "Center", Parent = NavScroll})
-
-    local Content = self:Create("Frame", {
-        Size = UDim2.new(1, -165, 1, -50),
-        Position = UDim2.new(0, 160, 0, 45),
-        BackgroundTransparency = 1,
-        ZIndex = 3,
-        Parent = Main
-    })
-
-    local MinBtn = self:Create("TextButton", {
-        Size = UDim2.new(0, 30, 0, 30),
-        Position = UDim2.new(1, -35, 0, 8),
-        BackgroundTransparency = 1,
-        Text = "—",
-        TextColor3 = self.Themes.SubText,
-        Font = Enum.Font.GothamBold,
-        TextSize = 14,
-        ZIndex = 5,
-        Parent = Main
-    })
-
-    MinBtn.MouseButton1Click:Connect(function()
-        Main.Visible = false
-        Minimized.Visible = true
-    end)
-
-    Minimized.MouseButton1Click:Connect(function()
-        Minimized.Visible = false
-        Main.Visible = true
-    end)
-
-    local Tabs = {}
-
-    function Tabs:SetBackground(id, trans)
-        BgImg.Image = "rbxassetid://" .. tostring(id:match("%d+"))
-        BgImg.ImageTransparency = trans or 0.5
-    end
-
-    function Tabs:NewTab(name)
-        local TabBtn = PaperUI:Create("TextButton", {
-            Size = UDim2.new(0, 135, 0, 34),
-            BackgroundColor3 = Color3.fromRGB(30, 30, 35),
-            Text = name,
-            TextColor3 = PaperUI.Themes.SubText,
-            Font = Enum.Font.GothamMedium,
-            TextSize = 13,
-            ZIndex = 5,
-            Parent = NavScroll
-        })
-        PaperUI:Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = TabBtn})
-
-        local Page = PaperUI:Create("ScrollingFrame", {
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            Visible = false,
-            ScrollBarThickness = 0,
-            ZIndex = 4,
-            Parent = Content
-        })
-        PaperUI:Create("UIListLayout", {Padding = UDim.new(0, 8), Parent = Page})
-
-        TabBtn.MouseButton1Click:Connect(function()
-            for _, v in pairs(Content:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
-            for _, v in pairs(NavScroll:GetChildren()) do if v:IsA("TextButton") then TS:Create(v, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.SubText}):Play() end end
-            Page.Visible = true
-            TS:Create(TabBtn, TweenInfo.new(0.2), {TextColor3 = PaperUI.Themes.Accent}):Play()
-        end)
-
-        if #Content:GetChildren() == 1 then
-            Page.Visible = true
-            TabBtn.TextColor3 = PaperUI.Themes.Accent
-        end
-
-        local Modules = {}
-        function Modules:AddButton(txt, cb)
-            local b = PaperUI:Create("TextButton", {
-                Size = UDim2.new(1, -10, 0, 38),
-                BackgroundColor3 = PaperUI.Themes.Secondary,
-                Text = "  " .. txt,
-                TextColor3 = PaperUI.Themes.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = "Left",
-                ZIndex = 6,
-                Parent = Page
-            })
-            PaperUI:Create("UICorner", {Parent = b})
-            b.MouseButton1Click:Connect(cb)
-        end
-
-        function Modules:AddToggle(txt, def, cb)
-            local t = PaperUI:Create("Frame", {Size = UDim2.new(1, -10, 0, 40), BackgroundColor3 = PaperUI.Themes.Secondary, ZIndex = 6, Parent = Page})
-            PaperUI:Create("UICorner", {Parent = t})
-            local l = PaperUI:Create("TextLabel", {Size = UDim2.new(1, -60, 1, 0), Position = UDim2.new(0, 15, 0, 0), Text = txt, BackgroundTransparency = 1, TextColor3 = PaperUI.Themes.Text, TextXAlignment = "Left", ZIndex = 7, Parent = t})
-            local s = def
-            local btn = PaperUI:Create("TextButton", {Size = UDim2.new(0, 36, 0, 20), Position = UDim2.new(1, -45, 0.5, -10), Text = "", BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(45,45,50), ZIndex = 7, Parent = t})
-            PaperUI:Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = btn})
-            btn.MouseButton1Click:Connect(function()
-                s = not s
-                TS:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = s and PaperUI.Themes.Accent or Color3.fromRGB(45,45,50)}):Play()
-                cb(s)
-            end)
-        end
-
-        return Modules
-    end
-
-    return Tabs
+    return Sidebar
 end
 
-return PaperUI
+-- 拖拽功能实现
+function UI:MakeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- 初始化演示
+local ScreenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+local MainFrame = UI:CreateBase(ScreenGui)
+local Sidebar = UI:CreateSidebar(MainFrame)
+UI:MakeDraggable(MainFrame)
+
+print("UI库骨架已生成，拖拽功能已就绪。")
