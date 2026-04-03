@@ -1,16 +1,10 @@
--- [[ zhiUI Framework - Mobile Premium ]] --
--- 特性：胶囊缩放、自动布局、流光边框、手机拖拽支持
-
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local ContentProvider = game:GetService("ContentProvider")
 
--- 自动获取 UI 存放位置
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 颜色配置
 local Theme = {
     Main = Color3.fromRGB(20, 20, 20),
     Sidebar = Color3.fromRGB(25, 25, 25),
@@ -22,7 +16,6 @@ local Theme = {
     Text = Color3.fromRGB(255, 255, 255)
 }
 
--- 拖拽逻辑 (适配手机 Touch)
 local function MakeDraggable(obj)
     local dragging, dragStart, startPos
     obj.InputBegan:Connect(function(input)
@@ -45,14 +38,13 @@ local function MakeDraggable(obj)
     end)
 end
 
--- [[ 核心函数：创建窗口 ]] --
 function zhiUI:CreateWindow(config)
+    local Lib = { CurrentTab = nil }
     local Title = config.Title or "zhiUI"
     
     local ScreenGui = Instance.new("ScreenGui", Parent)
     ScreenGui.Name = "zhiUI_" .. math.random(100, 999)
 
-    -- 主窗口
     local MainFrame = Instance.new("Frame", ScreenGui)
     MainFrame.Size = UDim2.fromOffset(480, 320)
     MainFrame.Position = UDim2.fromScale(0.5, 0.5)
@@ -62,7 +54,6 @@ function zhiUI:CreateWindow(config)
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
     MakeDraggable(MainFrame)
 
-    -- 侧边栏
     local Sidebar = Instance.new("Frame", MainFrame)
     Sidebar.Size = UDim2.new(0, 140, 1, 0)
     Sidebar.BackgroundColor3 = Theme.Sidebar
@@ -74,16 +65,14 @@ function zhiUI:CreateWindow(config)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     Instance.new("UIPadding", Sidebar).PaddingTop = UDim.new(0, 10)
 
-    -- 内容区域容器
     local ContentHolder = Instance.new("Frame", MainFrame)
     ContentHolder.Position = UDim2.new(0, 150, 0, 10)
     ContentHolder.Size = UDim2.new(1, -160, 1, -20)
     ContentHolder.BackgroundTransparency = 1
 
-    -- 胶囊小窗
     local MiniFrame = Instance.new("TextButton", ScreenGui)
     MiniFrame.Size = UDim2.fromOffset(200, 38)
-    MiniFrame.Position = UDim2.new(0.5, -100, 0, 50)
+    MiniFrame.Position = UDim2.new(0.5, -100, 0, 40)
     MiniFrame.BackgroundColor3 = Theme.Main
     MiniFrame.Visible = false
     MiniFrame.Text = ""
@@ -100,41 +89,42 @@ function zhiUI:CreateWindow(config)
     MiniLabel.TextColor3 = Theme.Text
     MiniLabel.BackgroundTransparency = 1
     MiniLabel.Font = Enum.Font.GothamBold
+    MiniLabel.TextSize = 12
 
-    -- 切换函数
     local function Toggle()
         MainFrame.Visible = not MainFrame.Visible
         MiniFrame.Visible = not MainFrame.Visible
     end
     MiniFrame.MouseButton1Click:Connect(Toggle)
 
-    -- [[ 接口：添加标签页 ]] --
-    local Tabs = {}
-    function Tabs:AddTab(tabName)
-        local TabButton = Instance.new("TextButton", Sidebar)
-        TabButton.Size = UDim2.new(0.9, 0, 0, 35)
-        TabButton.BackgroundColor3 = Theme.Button
-        TabButton.Text = tabName
-        TabButton.TextColor3 = Theme.Text
-        TabButton.Font = Enum.Font.Gotham
-        Instance.new("UICorner", TabButton).CornerRadius = UDim.new(0, 6)
+    function Lib:AddTab(tabName)
+        local TabBtn = Instance.new("TextButton", Sidebar)
+        TabBtn.Size = UDim2.new(0.9, 0, 0, 35)
+        TabBtn.BackgroundColor3 = Theme.Button
+        TabBtn.Text = tabName
+        TabBtn.TextColor3 = Theme.Text
+        TabBtn.Font = Enum.Font.Gotham
+        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
 
         local Page = Instance.new("ScrollingFrame", ContentHolder)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
         Page.Visible = false
         Page.ScrollBarThickness = 0
-        local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0, 8)
+        Instance.new("UIListLayout", Page).Padding = UDim.new(0, 8)
 
-        TabButton.MouseButton1Click:Connect(function()
+        TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(ContentHolder:GetChildren()) do v.Visible = false end
             Page.Visible = true
         end)
 
-        -- [[ 接口：添加按钮 ]] --
-        local Elements = {}
-        function Elements:AddButton(text, callback)
+        if not Lib.CurrentTab then 
+            Lib.CurrentTab = Page
+            Page.Visible = true 
+        end
+
+        local TabMethods = {}
+        function TabMethods:AddButton(text, callback)
             local b = Instance.new("TextButton", Page)
             b.Size = UDim2.new(0.95, 0, 0, 35)
             b.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
@@ -144,14 +134,14 @@ function zhiUI:CreateWindow(config)
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
             b.MouseButton1Click:Connect(callback)
         end
-
-        return Elements
+        return TabMethods
     end
 
-    -- 渐变旋转
     task.spawn(function()
         while task.wait(0.05) do MiniGrad.Rotation = MiniGrad.Rotation + 3 end
     end)
 
-    return Tabs
+    return Lib
 end
+
+return zhiUI
