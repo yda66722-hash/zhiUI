@@ -1,140 +1,156 @@
--- [[ Paper UI Framework - Executor Edition ]] --
--- 开发者: ifioood1
--- 风格: macOS / WindUI (Dark + Neon Gradient)
+-- [[ Paper UI Framework - Mobile Executor Edition ]] --
+-- 功能：自动生成 UI、侧边栏、按钮、以及渐变胶囊小窗
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 local Player = game.Players.LocalPlayer
-local Mouse = Player:GetMouse()
 
-local UI = {
-    Theme = {
-        Background = Color3.fromRGB(20, 20, 20),
-        Sidebar = Color3.fromRGB(25, 25, 25),
-        Accent = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 100)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 255, 50))
-        }),
-        Stroke = Color3.fromRGB(45, 45, 45),
-        Text = Color3.fromRGB(255, 255, 255),
-        Font = Enum.Font.GothamMedium
-    }
+-- 尝试获取存放 UI 的位置 (兼容各种执行器)
+local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or Player:WaitForChild("PlayerGui")
+
+-- 删除旧 UI 防止重叠
+if Parent:FindFirstChild("PaperMobileUI") then
+    Parent.PaperMobileUI:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PaperMobileUI"
+ScreenGui.Parent = Parent
+
+-- [[ 核心颜色配置 ]] --
+local Theme = {
+    Main = Color3.fromRGB(25, 25, 25),
+    Secondary = Color3.fromRGB(32, 32, 32),
+    Accent = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 120)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 255, 0))
+    }),
+    Text = Color3.fromRGB(255, 255, 255)
 }
 
--- [[ 工具函数：拖拽 ]] --
-function UI:EnableDrag(frame)
-    local dragging, dragInput, dragStart, startPos
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+-- [[ 1. 主窗口创建 ]] --
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Name = "Main"
+MainFrame.Size = UDim2.fromOffset(450, 300)
+MainFrame.Position = UDim2.fromScale(0.5, 0.5)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Theme.Main
+MainFrame.BorderSizePixel = 0
+
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 10)
+
+-- 侧边栏
+local Sidebar = Instance.new("Frame", MainFrame)
+Sidebar.Size = UDim2.new(0, 130, 1, 0)
+Sidebar.BackgroundColor3 = Theme.Secondary
+Sidebar.BorderSizePixel = 0
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 10)
+
+-- 内容区域 (按钮存放地)
+local Container = Instance.new("ScrollingFrame", MainFrame)
+Container.Position = UDim2.new(0, 140, 0, 10)
+Container.Size = UDim2.new(1, -150, 1, -20)
+Container.BackgroundTransparency = 1
+Container.ScrollBarThickness = 2
+Container.CanvasSize = UDim2.new(0, 0, 2, 0)
+
+local Layout = Instance.new("UIListLayout", Container)
+Layout.Padding = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- [[ 2. 胶囊小窗 (Mini Mode) ]] --
+local MiniFrame = Instance.new("TextButton", ScreenGui)
+MiniFrame.Name = "Mini"
+MiniFrame.Size = UDim2.fromOffset(180, 35)
+MiniFrame.Position = UDim2.new(0.5, -90, 0, 40)
+MiniFrame.BackgroundColor3 = Theme.Main
+MiniFrame.Visible = false
+MiniFrame.Text = ""
+MiniFrame.AutoButtonColor = false
+Instance.new("UICorner", MiniFrame).CornerRadius = UDim.new(1, 0)
+
+local MiniStroke = Instance.new("UIStroke", MiniFrame)
+MiniStroke.Thickness = 2
+local MiniGrad = Instance.new("UIGradient", MiniStroke)
+MiniGrad.Color = Theme.Accent
+
+local MiniLabel = Instance.new("TextLabel", MiniFrame)
+MiniLabel.Size = UDim2.new(1, 0, 1, 0)
+MiniLabel.BackgroundTransparency = 1
+MiniLabel.Text = "Open .ftgs hub UI"
+MiniLabel.TextColor3 = Theme.Text
+MiniLabel.Font = Enum.Font.GothamBold
+MiniLabel.TextSize = 12
+
+-- [[ 3. 核心功能函数 ]] --
+
+-- 简单的按钮添加函数
+local function CreateButton(text, callback)
+    local Btn = Instance.new("TextButton", Container)
+    Btn.Size = UDim2.new(0.95, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    Btn.Text = text
+    Btn.TextColor3 = Theme.Text
+    Btn.Font = Enum.Font.Gotham
+    Btn.TextSize = 14
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    
+    Btn.MouseButton1Click:Connect(callback)
+end
+
+-- 切换显示/隐藏动画
+local function ToggleUI()
+    if MainFrame.Visible then
+        MainFrame.Visible = false
+        MiniFrame.Visible = true
+    else
+        MainFrame.Visible = true
+        MiniFrame.Visible = false
+    end
+end
+
+-- 绑定点击小窗打开主窗
+MiniFrame.MouseButton1Click:Connect(ToggleUI)
+
+-- 手机拖拽支持
+local function MakeDraggable(obj)
+    local dragging, dragStart, startPos
+    obj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
-            startPos = frame.Position
+            startPos = obj.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-    end)
-end
-
--- [[ 创建主 UI ]] --
-function UI:Init()
-    local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
-    ScreenGui.Name = "PaperExecutorUI"
-    ScreenGui.ResetOnSpawn = false
-
-    -- 1. 主窗口 (Main Window)
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.fromOffset(550, 350)
-    MainFrame.Position = UDim2.fromScale(0.5, 0.5)
-    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainFrame.BackgroundColor3 = self.Theme.Background
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Visible = true
-    MainFrame.Parent = ScreenGui
-
-    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
-    local MainStroke = Instance.new("UIStroke", MainFrame)
-    MainStroke.Color = self.Theme.Stroke
-    MainStroke.Thickness = 1
-
-    -- 2. 侧边栏 (Sidebar)
-    local Sidebar = Instance.new("Frame", MainFrame)
-    Sidebar.Size = UDim2.new(0, 160, 1, 0)
-    Sidebar.BackgroundColor3 = self.Theme.Sidebar
-    Sidebar.BorderSizePixel = 0
-    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 12)
-
-    -- 3. 胶囊缩写窗 (Mini Window)
-    local MiniFrame = Instance.new("TextButton", ScreenGui)
-    MiniFrame.Size = UDim2.fromOffset(200, 40)
-    MiniFrame.Position = UDim2.new(1, -220, 0, 50)
-    MiniFrame.BackgroundColor3 = self.Theme.Background
-    MiniFrame.Visible = false
-    MiniFrame.Text = ""
-    MiniFrame.AutoButtonColor = false
-
-    Instance.new("UICorner", MiniFrame).CornerRadius = UDim.new(1, 0)
-    local MiniStroke = Instance.new("UIStroke", MiniFrame)
-    MiniStroke.Thickness = 2
-    local MiniGradient = Instance.new("UIGradient", MiniStroke)
-    MiniGradient.Color = self.Theme.Accent
-
-    local MiniLabel = Instance.new("TextLabel", MiniFrame)
-    MiniLabel.Size = UDim2.new(1, -60, 1, 0)
-    MiniLabel.Position = UDim2.fromOffset(50, 0)
-    MiniLabel.BackgroundTransparency = 1
-    MiniLabel.Text = "Open .ftgs hub UI"
-    MiniLabel.TextColor3 = self.Theme.Text
-    MiniLabel.Font = self.Theme.Font
-    MiniLabel.TextSize = 14
-    MiniLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- [[ 交互逻辑：切换状态 ]] --
-    
-    -- 缩小函数
-    local function Minimize()
-        MainFrame:TweenSize(UDim2.fromOffset(0, 0), "Out", "Quad", 0.3, true, function()
-            MainFrame.Visible = false
-            MiniFrame.Visible = true
-            MiniFrame:TweenSize(UDim2.fromOffset(200, 40), "Out", "Back", 0.3)
-        end)
-    end
-
-    -- 展开函数
-    local function Maximize()
-        MiniFrame:TweenSize(UDim2.fromOffset(0, 0), "In", "Quad", 0.2, true, function()
-            MiniFrame.Visible = false
-            MainFrame.Visible = true
-            MainFrame:TweenSize(UDim2.fromOffset(550, 350), "Out", "Back", 0.3)
-        end)
-    end
-
-    -- 绑定点击事件
-    MiniFrame.MouseButton1Click:Connect(Maximize)
-    
-    -- 示例：按下右侧 Control 键缩小
-    UserInputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.RightControl then
-            if MainFrame.Visible then Minimize() else Maximize() end
-        end
-    end)
-
-    -- 启用拖拽
-    self:EnableDrag(MainFrame)
-    self:EnableDrag(MiniFrame)
-
-    -- 简单的渐变旋转动画
-    task.spawn(function()
-        while task.wait(0.05) do
-            MiniGradient.Rotation = MiniGradient.Rotation + 2
+    obj.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
         end
     end)
 end
 
-UI:Init()
+MakeDraggable(MainFrame)
+MakeDraggable(MiniFrame)
+
+-- [[ 4. 添加基础按钮 ]] --
+CreateButton("执行 Paper Obfuscator", function() print("已运行混淆器") end)
+CreateButton("开启 Paper Fly (纸飞行)", function() print("飞行开启") end)
+CreateButton("切换 UI 状态 (或点这里)", ToggleUI)
+
+-- 装饰：让胶囊边框转起来
+task.spawn(function()
+    while MiniFrame do
+        MiniGrad.Rotation = MiniGrad.Rotation + 3
+        task.wait(0.05)
+    end
+end)
+
+print("Paper UI 已成功加载！点击屏幕顶部的胶囊或使用脚本内的切换按钮。")
