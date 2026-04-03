@@ -1,4 +1,4 @@
--- [[ zhiUI Framework - Final Jelly Edition ]] --
+-- [[ zhiUI Framework - + Icon Update & Slider Support ]] --
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -6,7 +6,7 @@ local CoreGui = game:GetService("CoreGui")
 
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 清理旧UI (zhiUI_ 前缀)
+-- 清理旧UI
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
 end
@@ -20,16 +20,7 @@ local Theme = {
     Trans = 0.1
 }
 
--- [ 动画辅助函数 ] --
-local function JellyTab(obj)
-    obj.MouseEnter:Connect(function()
-        TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0.9, 0, 0, 48)}):Play()
-    end)
-    obj.MouseLeave:Connect(function()
-        TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0.85, 0, 0, 45)}):Play()
-    end)
-end
-
+-- [ 动画辅助 ] --
 local function JellyClick(obj)
     obj.MouseButton1Down:Connect(function()
         TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(0.9, 0, 0, 45)}):Play()
@@ -65,41 +56,50 @@ function zhiUI:CreateWindow(config)
     ScreenGui.Name = "zhiUI_" .. math.random(1,1000)
     ScreenGui.ResetOnSpawn = false
 
-    -- [ 屏幕适配 ] --
     local UIScale = Instance.new("UIScale", ScreenGui)
-    local function UpdateScale()
-        UIScale.Scale = (workspace.CurrentCamera.ViewportSize.X < 800) and 0.8 or 1
-    end
-    UpdateScale()
-    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+    UIScale.Scale = (workspace.CurrentCamera.ViewportSize.X < 800) and 0.8 or 1
 
-    -- [ 胶囊小窗 ] --
+    -- [ 胶囊小窗 - 使用纯代码绘制 + 号 ] --
     local Mini = Instance.new("Frame", ScreenGui)
-    Mini.Size = UDim2.fromOffset(200, 45)
-    Mini.Position = UDim2.new(0.5, -100, 0, 50)
+    Mini.Size = UDim2.fromOffset(180, 45)
+    Mini.Position = UDim2.new(0.5, -90, 0, 50)
     Mini.BackgroundColor3 = Theme.Main
     Mini.BackgroundTransparency = 0.1
     Mini.Visible = false
     Mini.ClipsDescendants = true
     Instance.new("UICorner", Mini).CornerRadius = UDim.new(1, 0)
     
-    local DragIcon = Instance.new("TextLabel", Mini)
-    DragIcon.Size = UDim2.new(0, 45, 1, 0)
-    DragIcon.BackgroundTransparency = 1
-    DragIcon.Text = "+"
-    DragIcon.TextColor3 = Theme.TextSecondary
-    DragIcon.TextSize = 20
+    -- 绘制 + 号区域 (拖拽区)
+    local PlusIconArea = Instance.new("Frame", Mini)
+    PlusIconArea.Size = UDim2.fromOffset(45, 45)
+    PlusIconArea.BackgroundTransparency = 1
+    
+    -- 横线
+    local Plus_H = Instance.new("Frame", PlusIconArea)
+    Plus_H.Size = UDim2.fromOffset(16, 2)
+    Plus_H.Position = UDim2.fromScale(0.5, 0.5)
+    Plus_H.AnchorPoint = Vector2.new(0.5, 0.5)
+    Plus_H.BackgroundColor3 = Theme.Text
+    Plus_H.BorderSizePixel = 0
+    
+    -- 竖线
+    local Plus_V = Instance.new("Frame", PlusIconArea)
+    Plus_V.Size = UDim2.fromOffset(2, 16)
+    Plus_V.Position = UDim2.fromScale(0.5, 0.5)
+    Plus_V.AnchorPoint = Vector2.new(0.5, 0.5)
+    Plus_V.BackgroundColor3 = Theme.Text
+    Plus_V.BorderSizePixel = 0
     
     local ClickOpen = Instance.new("TextButton", Mini)
-    ClickOpen.Size = UDim2.new(1, -50, 1, 0)
-    ClickOpen.Position = UDim2.fromOffset(50, 0)
+    ClickOpen.Size = UDim2.new(1, -45, 1, 0)
+    ClickOpen.Position = UDim2.fromOffset(45, 0)
     ClickOpen.BackgroundTransparency = 1
-    ClickOpen.Text = "Open " .. TitleText
+    ClickOpen.Text = "Open UI"
     ClickOpen.TextColor3 = Theme.Text
     ClickOpen.Font = Enum.Font.GothamBold
     ClickOpen.TextSize = 14
     
-    MakeDraggable(DragIcon, Mini)
+    MakeDraggable(PlusIconArea, Mini)
 
     -- [ 主窗口 ] --
     local Main = Instance.new("Frame", ScreenGui)
@@ -113,82 +113,59 @@ function zhiUI:CreateWindow(config)
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
     MakeDraggable(Main, Main)
 
-    -- [ 折叠逻辑：果冻缩放 ] --
+    -- 折叠逻辑
     local function ToggleUI(show)
         if show then
             Main.Visible = true
             Main.Size = UDim2.fromOffset(0, 0)
             TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = MainSize}):Play()
-            TweenService:Create(Mini, TweenInfo.new(0.3), {Size = UDim2.fromOffset(0, 45)}):Play()
-            task.wait(0.3)
             Mini.Visible = false
         else
             TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(0, 0)}):Play()
-            task.wait(0.3)
+            task.wait(0.2)
             Main.Visible = false
             Mini.Visible = true
-            Mini.Size = UDim2.fromOffset(0, 45)
-            TweenService:Create(Mini, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = UDim2.fromOffset(200, 45)}):Play()
         end
     end
 
-    -- 顶部栏
+    ClickOpen.MouseButton1Click:Connect(function() ToggleUI(true) end)
+
+    -- 顶部按钮 (黄色按钮触发折叠)
     local TopBar = Instance.new("Frame", Main)
     TopBar.Size = UDim2.new(1, 0, 0, 50)
     TopBar.BackgroundTransparency = 1
 
-    local Buttons = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
-    for i, color in ipairs(Buttons) do
-        local b = Instance.new("TextButton", TopBar)
-        b.Size = UDim2.fromOffset(13, 13)
-        b.Position = UDim2.fromOffset(18 + (i-1)*22, 19)
-        b.BackgroundColor3 = color
-        b.Text = ""
-        Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
-        if i == 1 then b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-        elseif i == 2 then b.MouseButton1Click:Connect(function() ToggleUI(false) end) end
-    end
-    
-    ClickOpen.MouseButton1Click:Connect(function() ToggleUI(true) end)
+    local MinimizeBtn = Instance.new("TextButton", TopBar)
+    MinimizeBtn.Size = UDim2.fromOffset(13, 13)
+    MinimizeBtn.Position = UDim2.fromOffset(40, 19)
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 189, 46)
+    MinimizeBtn.Text = ""
+    Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(1, 0)
+    MinimizeBtn.MouseButton1Click:Connect(function() ToggleUI(false) end)
 
-    local Title = Instance.new("TextLabel", TopBar)
-    Title.Size = UDim2.new(1, -100, 1, 0)
-    Title.Position = UDim2.fromOffset(85, 0)
-    Title.BackgroundTransparency = 1
-    Title.Text = TitleText
-    Title.TextColor3 = Theme.Text
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 20
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- 侧边栏
+    -- 侧边栏与容器
     local Sidebar = Instance.new("Frame", Main)
-    Sidebar.Size = UDim2.new(0, 160, 1, -50)
+    Sidebar.Size = UDim2.new(0, 150, 1, -50)
     Sidebar.Position = UDim2.fromOffset(0, 50)
     Sidebar.BackgroundColor3 = Theme.Sidebar
     Sidebar.BackgroundTransparency = 0.2
-    Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 14)
-    local SideLayout = Instance.new("UIListLayout", Sidebar)
-    SideLayout.Padding = UDim.new(0, 5)
-    SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    Instance.new("UIListLayout", Sidebar).HorizontalAlignment = Enum.HorizontalAlignment.Center
 
     local Container = Instance.new("Frame", Main)
-    Container.Size = UDim2.new(1, -180, 1, -70)
-    Container.Position = UDim2.fromOffset(170, 60)
+    Container.Size = UDim2.new(1, -170, 1, -70)
+    Container.Position = UDim2.fromOffset(160, 60)
     Container.BackgroundTransparency = 1
 
     function Lib:AddTab(name)
         local TabBtn = Instance.new("TextButton", Sidebar)
-        TabBtn.Size = UDim2.new(0.85, 0, 0, 45)
+        TabBtn.Size = UDim2.new(0.9, 0, 0, 40)
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = name
         TabBtn.TextColor3 = Theme.TextSecondary
         TabBtn.Font = Enum.Font.GothamBold
-        TabBtn.TextSize = 16
-        JellyTab(TabBtn)
         
         local Page = Instance.new("ScrollingFrame", Container)
-        Page.Size = UDim2.new(1, 0, 1, 0)
+        Page.Size = UDim2.fromScale(1, 1)
         Page.BackgroundTransparency = 1
         Page.Visible = false
         Page.ScrollBarThickness = 0
@@ -196,68 +173,84 @@ function zhiUI:CreateWindow(config)
 
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(Container:GetChildren()) do v.Visible = false end
-            for _, v in pairs(Sidebar:GetChildren()) do if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end end
             Page.Visible = true
-            TabBtn.TextColor3 = Theme.Text
         end)
-
-        if not Lib.CurrentTab then Lib.CurrentTab = Page Page.Visible = true TabBtn.TextColor3 = Theme.Text end
+        if not Lib.CurrentTab then Lib.CurrentTab = Page Page.Visible = true end
 
         local Elements = {}
-        function Elements:AddButton(text, callback)
-            local b = Instance.new("TextButton", Page)
-            b.Size = UDim2.new(0.95, 0, 0, 50)
-            b.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-            b.BackgroundTransparency = 0.4
-            b.Text = text
-            b.TextColor3 = Theme.Text
-            b.Font = Enum.Font.GothamBold
-            b.TextSize = 17
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-            JellyClick(b)
-            b.MouseButton1Click:Connect(callback)
-        end
+        
+        -- 滑动条功能 (带实时数字显示)
+        function Elements:AddSlider(text, min, max, default, callback)
+            local SliderFrame = Instance.new("Frame", Page)
+            SliderFrame.Size = UDim2.new(0.95, 0, 0, 60)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            SliderFrame.BackgroundTransparency = 0.4
+            Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 10)
 
-        function Elements:AddToggle(text, default, callback)
-            local state = default or false
-            local ToggleFrame = Instance.new("Frame", Page)
-            ToggleFrame.Size = UDim2.new(0.95, 0, 0, 50)
-            ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            ToggleFrame.BackgroundTransparency = 0.4
-            Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 10)
-            
-            local Label = Instance.new("TextLabel", ToggleFrame)
-            Label.Size = UDim2.new(0.7, 0, 1, 0)
-            Label.Position = UDim2.fromOffset(15, 0)
-            Label.BackgroundTransparency = 1
-            Label.Text = text
+            local Label = Instance.new("TextLabel", SliderFrame)
+            Label.Size = UDim2.new(1, -20, 0, 25)
+            Label.Position = UDim2.fromOffset(10, 5)
+            Label.Text = text .. ": " .. default
             Label.TextColor3 = Theme.Text
             Label.Font = Enum.Font.GothamBold
-            Label.TextSize = 16
+            Label.TextSize = 14
             Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.BackgroundTransparency = 1
 
-            local SwitchBG = Instance.new("TextButton", ToggleFrame)
-            SwitchBG.Size = UDim2.fromOffset(45, 24)
-            SwitchBG.Position = UDim2.new(1, -60, 0.5, -12)
-            SwitchBG.BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(70, 70, 70)
-            SwitchBG.Text = ""
-            Instance.new("UICorner", SwitchBG).CornerRadius = UDim.new(1, 0)
-            
-            local Dot = Instance.new("Frame", SwitchBG)
-            Dot.Size = UDim2.fromOffset(20, 20)
-            Dot.Position = state and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
-            Dot.BackgroundColor3 = Color3.new(1, 1, 1)
-            Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
+            local SliderBack = Instance.new("Frame", SliderFrame)
+            SliderBack.Size = UDim2.new(0.9, 0, 0, 4)
+            SliderBack.Position = UDim2.new(0.05, 0, 0.75, 0)
+            SliderBack.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            Instance.new("UICorner", SliderBack)
 
-            SwitchBG.MouseButton1Click:Connect(function()
-                state = not state
-                local targetPos = state and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
-                local targetCol = state and Theme.Accent or Color3.fromRGB(70, 70, 70)
-                TweenService:Create(Dot, TweenInfo.new(0.3, Enum.EasingStyle.Elastic), {Position = targetPos}):Play()
-                TweenService:Create(SwitchBG, TweenInfo.new(0.3), {BackgroundColor3 = targetCol}):Play()
-                callback(state)
+            local SliderFill = Instance.new("Frame", SliderBack)
+            SliderFill.Size = UDim2.fromScale((default - min) / (max - min), 1)
+            SliderFill.BackgroundColor3 = Theme.Accent
+            Instance.new("UICorner", SliderFill)
+
+            local dragging = false
+            local function Update()
+                local inputPos = UserInputService:GetMouseLocation().X
+                local barPos = SliderBack.AbsolutePosition.X
+                local barWidth = SliderBack.AbsoluteSize.X
+                local percent = math.clamp((inputPos - barPos) / barWidth, 0, 1)
+                
+                SliderFill.Size = UDim2.fromScale(percent, 1)
+                local val = math.floor(min + (max - min) * percent)
+                Label.Text = text .. ": " .. val
+                callback(val)
+            end
+
+            SliderBack.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true Update()
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    Update()
+                end
+            end)
+
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
             end)
         end
+
+        function Elements:AddButton(txt, cb)
+            local b = Instance.new("TextButton", Page)
+            b.Size = UDim2.new(0.95, 0, 0, 45)
+            b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            b.Text = txt
+            b.TextColor3 = Theme.Text
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+            JellyClick(b)
+            b.MouseButton1Click:Connect(cb)
+        end
+
         return Elements
     end
     return Lib
