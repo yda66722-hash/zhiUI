@@ -1,14 +1,13 @@
--- [[ zhiUI Framework - Optimized Mac-iOS Hybrid ]] --
--- 去除了胶囊线条，增加了丝滑开关，优化透明度
-
+-- [[ zhiUI Framework - Optimized for Mobile & PC ]] --
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 清理旧UI (防止多次运行叠加)
+-- 清理旧UI
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
 end
@@ -16,26 +15,27 @@ end
 local Theme = {
     Main = Color3.fromRGB(25, 25, 25),
     Sidebar = Color3.fromRGB(32, 32, 32),
-    Accent = Color3.fromRGB(0, 122, 255), -- iOS 蓝色
+    Accent = Color3.fromRGB(0, 122, 255),
     Text = Color3.fromRGB(255, 255, 255),
     TextSecondary = Color3.fromRGB(160, 160, 160),
-    Trans = 0.1 -- 整体背景透明度
+    Trans = 0.1
 }
 
-local function MakeDraggable(obj)
+-- 核心拖拽函数
+local function MakeDraggable(dragPart, mainPart)
     local dragging, dragStart, startPos
-    obj.InputBegan:Connect(function(input)
+    dragPart.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true dragStart = input.Position startPos = obj.Position
+            dragging = true dragStart = input.Position startPos = mainPart.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            mainPart.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    obj.InputEnded:Connect(function(input)
+    obj_ended = UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
 end
@@ -48,27 +48,57 @@ function zhiUI:CreateWindow(config)
     ScreenGui.Name = "zhiUI_" .. math.random(1,1000)
     ScreenGui.ResetOnSpawn = false
 
-    -- 1. 胶囊小窗 (精简版：无边框线条)
-    local Mini = Instance.new("TextButton", ScreenGui)
-    Mini.Size = UDim2.fromOffset(180, 40)
-    Mini.Position = UDim2.new(0.5, -90, 0, 60)
+    -- [ 屏幕适配 ] --
+    local UIScale = Instance.new("UIScale", ScreenGui)
+    local function UpdateScale()
+        local ViewportSize = workspace.CurrentCamera.ViewportSize
+        -- 针对手机端缩小比例（如果是小屏幕则缩小至 0.8 或更小）
+        if ViewportSize.X < 800 then
+            UIScale.Scale = 0.75
+        else
+            UIScale.Scale = 1
+        end
+    end
+    UpdateScale()
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+
+    -- [ 胶囊小窗 (带拖动区，无色线条) ] --
+    local Mini = Instance.new("Frame", ScreenGui)
+    Mini.Size = UDim2.fromOffset(200, 45)
+    Mini.Position = UDim2.new(0.5, -100, 0, 50)
     Mini.BackgroundColor3 = Theme.Main
     Mini.BackgroundTransparency = 0.1
     Mini.Visible = false
-    Mini.Text = ""
-    Mini.AutoButtonColor = false
     Instance.new("UICorner", Mini).CornerRadius = UDim.new(1, 0)
     
-    local MiniLabel = Instance.new("TextLabel", Mini)
-    MiniLabel.Size = UDim2.new(1, 0, 1, 0)
-    MiniLabel.Text = "展开 " .. TitleText
-    MiniLabel.TextColor3 = Theme.Text
-    MiniLabel.BackgroundTransparency = 1
-    MiniLabel.Font = Enum.Font.GothamBold
-    MiniLabel.TextSize = 14
-    MakeDraggable(Mini)
+    -- 左侧拖动图标区
+    local DragIcon = Instance.new("TextLabel", Mini)
+    DragIcon.Size = UDim2.new(0, 40, 1, 0)
+    DragIcon.BackgroundTransparency = 1
+    DragIcon.Text = "✢" -- 拖拽图标
+    DragIcon.TextColor3 = Theme.TextSecondary
+    DragIcon.TextSize = 20
+    
+    local Divider = Instance.new("Frame", Mini)
+    Divider.Size = UDim2.new(0, 1, 0.6, 0)
+    Divider.Position = UDim2.fromOffset(40, 9)
+    Divider.BackgroundColor3 = Theme.TextSecondary
+    Divider.BackgroundTransparency = 0.5
+    Divider.BorderSizePixel = 0
 
-    -- 2. 主窗口
+    -- 右侧点击开启区
+    local ClickOpen = Instance.new("TextButton", Mini)
+    ClickOpen.Size = UDim2.new(1, -45, 1, 0)
+    ClickOpen.Position = UDim2.fromOffset(45, 0)
+    ClickOpen.BackgroundTransparency = 1
+    ClickOpen.Text = "Open " .. TitleText
+    ClickOpen.TextColor3 = Theme.Text
+    ClickOpen.Font = Enum.Font.GothamBold
+    ClickOpen.TextSize = 14
+    
+    MakeDraggable(DragIcon, Mini)
+
+    -- [ 主窗口 ] --
     local Main = Instance.new("Frame", ScreenGui)
     Main.Size = UDim2.fromOffset(550, 380)
     Main.Position = UDim2.fromScale(0.5, 0.5)
@@ -77,14 +107,13 @@ function zhiUI:CreateWindow(config)
     Main.BackgroundTransparency = Theme.Trans
     Main.BorderSizePixel = 0
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
-    MakeDraggable(Main)
+    MakeDraggable(Main, Main) -- 整个窗口可拖动
 
     -- 顶部栏
     local TopBar = Instance.new("Frame", Main)
     TopBar.Size = UDim2.new(1, 0, 0, 50)
     TopBar.BackgroundTransparency = 1
 
-    -- Mac 风格按钮
     local Buttons = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
     for i, color in ipairs(Buttons) do
         local b = Instance.new("TextButton", TopBar)
@@ -93,19 +122,11 @@ function zhiUI:CreateWindow(config)
         b.BackgroundColor3 = color
         b.Text = ""
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
-        
-        if i == 1 then -- 关闭
-            b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-        elseif i == 2 then -- 缩小
-            b.MouseButton1Click:Connect(function() 
-                Main.Visible = false Mini.Visible = true 
-            end)
-        end
+        if i == 1 then b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+        elseif i == 2 then b.MouseButton1Click:Connect(function() Main.Visible = false Mini.Visible = true end) end
     end
     
-    Mini.MouseButton1Click:Connect(function()
-        Main.Visible = true Mini.Visible = false
-    end)
+    ClickOpen.MouseButton1Click:Connect(function() Main.Visible = true Mini.Visible = false end)
 
     local Title = Instance.new("TextLabel", TopBar)
     Title.Size = UDim2.new(1, -100, 1, 0)
@@ -117,20 +138,18 @@ function zhiUI:CreateWindow(config)
     Title.TextSize = 20
     Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- 3. 侧边栏
+    -- 侧边栏
     local Sidebar = Instance.new("Frame", Main)
     Sidebar.Size = UDim2.new(0, 160, 1, -50)
     Sidebar.Position = UDim2.fromOffset(0, 50)
     Sidebar.BackgroundColor3 = Theme.Sidebar
     Sidebar.BackgroundTransparency = 0.2
-    Sidebar.BorderSizePixel = 0
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 14)
 
     local SideLayout = Instance.new("UIListLayout", Sidebar)
     SideLayout.Padding = UDim.new(0, 5)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    -- 内容区
     local Container = Instance.new("Frame", Main)
     Container.Size = UDim2.new(1, -180, 1, -70)
     Container.Position = UDim2.fromOffset(170, 60)
@@ -150,27 +169,18 @@ function zhiUI:CreateWindow(config)
         Page.BackgroundTransparency = 1
         Page.Visible = false
         Page.ScrollBarThickness = 0
-        local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0, 10)
+        Instance.new("UIListLayout", Page).Padding = UDim.new(0, 10)
 
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(Container:GetChildren()) do v.Visible = false end
-            for _, v in pairs(Sidebar:GetChildren()) do 
-                if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end 
-            end
+            for _, v in pairs(Sidebar:GetChildren()) do if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end end
             Page.Visible = true
             TabBtn.TextColor3 = Theme.Text
         end)
 
-        if not Lib.CurrentTab then
-            Lib.CurrentTab = Page
-            Page.Visible = true
-            TabBtn.TextColor3 = Theme.Text
-        end
+        if not Lib.CurrentTab then Lib.CurrentTab = Page Page.Visible = true TabBtn.TextColor3 = Theme.Text end
 
         local Elements = {}
-
-        -- 开关功能 (Toggle)
         function Elements:AddToggle(text, default, callback)
             local state = default or false
             local ToggleFrame = Instance.new("Frame", Page)
@@ -212,7 +222,6 @@ function zhiUI:CreateWindow(config)
             end)
         end
 
-        -- 按钮功能 (Button)
         function Elements:AddButton(text, callback)
             local b = Instance.new("TextButton", Page)
             b.Size = UDim2.new(0.95, 0, 0, 50)
@@ -225,10 +234,8 @@ function zhiUI:CreateWindow(config)
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
             b.MouseButton1Click:Connect(callback)
         end
-
         return Elements
     end
-
     return Lib
 end
 
