@@ -1,5 +1,6 @@
--- [[ zhiUI Framework - iOS Edition ]] --
--- 设计理念: 极简、大字号、高对比度、iOS 设置风格
+-- [[ zhiUI Framework - iOS Pure Edition ]] --
+-- 只有库定义，不含任何调用逻辑
+-- 适配手机，支持大字号、拖拽和自动画布
 
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
@@ -8,20 +9,18 @@ local CoreGui = game:GetService("CoreGui")
 
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- iOS 深色主题颜色配置
 local Theme = {
-    Main = Color3.fromRGB(0, 0, 0), -- 纯黑背景
-    Secondary = Color3.fromRGB(28, 28, 30), -- 分组卡片背景
-    Accent = Color3.fromRGB(10, 132, 255), -- iOS 蓝色强调色
-    Text = Color3.fromRGB(255, 255, 255), -- 纯白文字
-    TextSecondary = Color3.fromRGB(174, 174, 178), -- 灰色辅助文字
-    FontTitle = Enum.Font.GothamBold, -- 模拟大标题
-    FontText = Enum.Font.Gotham, -- 模拟标准文字
-    TextSizeTitle = 32, -- 大标题字号
-    TextSizeButton = 18 -- 按钮字号（加大）
+    Main = Color3.fromRGB(0, 0, 0), 
+    Secondary = Color3.fromRGB(28, 28, 30), 
+    Accent = Color3.fromRGB(10, 132, 255), 
+    Text = Color3.fromRGB(255, 255, 255),
+    TextSecondary = Color3.fromRGB(174, 174, 178),
+    FontTitle = Enum.Font.GothamBold,
+    FontText = Enum.Font.GothamMedium,
+    TextSizeTitle = 32,
+    TextSizeButton = 20
 }
 
--- 手机拖拽支持
 local function MakeDraggable(obj)
     local dragging, dragStart, startPos
     obj.InputBegan:Connect(function(input)
@@ -38,132 +37,86 @@ local function MakeDraggable(obj)
         end
     end)
     obj.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
 end
 
--- [[ 核心函数：创建窗口 ]] --
-function zhiUI:CreateWindow(config)
-    local Title = config.Title or "zhiUI"
-    local Lib = { CurrentPage = nil }
-    
+function zhiUI:CreateWindow(title)
     local ScreenGui = Instance.new("ScreenGui", Parent)
-    ScreenGui.Name = "zhiUI_iOS_" .. math.random(100, 999)
-    ScreenGui.ResetOnSpawn = false
-
-    -- 主窗口 (模仿 iOS 15 样式的浮动卡片)
+    ScreenGui.Name = "zhiUI_Mobile_" .. math.random(1,1000)
+    
     local MainFrame = Instance.new("Frame", ScreenGui)
-    MainFrame.Size = UDim2.fromOffset(400, 550) -- 竖向布局更像手机
+    MainFrame.Size = UDim2.fromOffset(380, 500)
     MainFrame.Position = UDim2.fromScale(0.5, 0.5)
     MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     MainFrame.BackgroundColor3 = Theme.Main
     MainFrame.BorderSizePixel = 0
-    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
     MakeDraggable(MainFrame)
 
-    -- 内容区域容器
-    local ContentHolder = Instance.new("Frame", MainFrame)
-    ContentHolder.Position = UDim2.new(0, 0, 0, 0) -- 占满
-    ContentHolder.Size = UDim2.new(1, 0, 1, 0)
-    ContentHolder.BackgroundTransparency = 1
+    local Content = Instance.new("ScrollingFrame", MainFrame)
+    Content.Size = UDim2.new(1, 0, 1, 0)
+    Content.BackgroundTransparency = 1
+    Content.ScrollBarThickness = 0
+    Content.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    
+    local Layout = Instance.new("UIListLayout", Content)
+    Layout.Padding = UDim.new(0, 10)
+    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    Instance.new("UIPadding", Content).PaddingTop = UDim.new(0, 20)
 
-    -- [[ 接口：添加标签页 (iOS 风格分组) ]] --
-    local Pages = {}
-    function Pages:AddPage(pageName)
-        local Page = Instance.new("ScrollingFrame", ContentHolder)
-        Page.Size = UDim2.new(1, 0, 1, 0)
-        Page.BackgroundTransparency = 1
-        Page.Visible = false
-        Page.ScrollBarThickness = 0
-        Page.CanvasSize = UDim2.new(0, 0, 2, 0)
-        
-        local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0, 0) -- iOS 风格分组不需要额外Padding
-        PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    local TitleLabel = Instance.new("TextLabel", Content)
+    TitleLabel.Size = UDim2.new(1, -40, 0, 60)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = Theme.Text
+    TitleLabel.Font = Theme.FontTitle
+    TitleLabel.TextSize = Theme.TextSizeTitle
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- iOS 大标题
-        local LargeTitle = Instance.new("TextLabel", Page)
-        LargeTitle.Size = UDim2.new(1, -30, 0, 80) -- 左右留白
-        LargeTitle.Position = UDim2.fromOffset(15, 0)
-        LargeTitle.BackgroundTransparency = 1
-        LargeTitle.Text = pageName
-        LargeTitle.TextColor3 = Theme.Text
-        LargeTitle.Font = Theme.FontTitle
-        LargeTitle.TextSize = Theme.TextSizeTitle
-        LargeTitle.TextXAlignment = Enum.TextXAlignment.Left
-        LargeTitle.ZIndex = 2 -- 确保在最前
+    local Methods = {}
+    function Methods:AddButton(name, sub, callback)
+        local Btn = Instance.new("TextButton", Content)
+        Btn.Size = UDim2.new(1, -30, 0, 70)
+        Btn.BackgroundColor3 = Theme.Secondary
+        Btn.Text = ""
+        Btn.AutoButtonColor = false
+        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 12)
 
-        if not Lib.CurrentPage then
-            Lib.CurrentPage = Page
-            Page.Visible = true
-        end
+        local t = Instance.new("TextLabel", Btn)
+        t.Size = UDim2.new(1, -40, 0, 30)
+        t.Position = UDim2.fromOffset(15, 12)
+        t.BackgroundTransparency = 1
+        t.Text = name
+        t.TextColor3 = Theme.Text
+        t.Font = Theme.FontText
+        t.TextSize = Theme.TextSizeButton
+        t.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- [[ 接口：添加按钮 (iOS 列表条目风格) ]] --
-        local Elements = {}
-        function Elements:AddButton(text, description, callback)
-            local ButtonFrame = Instance.new("TextButton", Page)
-            ButtonFrame.Size = UDim2.new(1, -30, 0, 60) -- 宽度占满
-            ButtonFrame.BackgroundColor3 = Theme.Secondary
-            ButtonFrame.BorderSizePixel = 0
-            ButtonFrame.AutoButtonColor = false
-            ButtonFrame.Text = ""
-            
-            local Corner = Instance.new("UICorner", ButtonFrame)
-            Corner.CornerRadius = UDim.new(0, 10)
+        local s = Instance.new("TextLabel", Btn)
+        s.Size = UDim2.new(1, -40, 0, 20)
+        s.Position = UDim2.fromOffset(15, 38)
+        s.BackgroundTransparency = 1
+        s.Text = sub or "Tap to execute"
+        s.TextColor3 = Theme.TextSecondary
+        s.Font = Theme.FontText
+        s.TextSize = 14
+        s.TextXAlignment = Enum.TextXAlignment.Left
 
-            local TitleLabel = Instance.new("TextLabel", ButtonFrame)
-            TitleLabel.Size = UDim2.new(1, -100, 0, 25) -- 留出右侧空间
-            TitleLabel.Position = UDim2.fromOffset(15, 10)
-            TitleLabel.BackgroundTransparency = 1
-            TitleLabel.Text = text
-            TitleLabel.TextColor3 = Theme.Text
-            TitleLabel.Font = Theme.FontText
-            TitleLabel.TextSize = Theme.TextSizeButton
-            TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-            if description then
-                local DescLabel = Instance.new("TextLabel", ButtonFrame)
-                DescLabel.Size = UDim2.new(1, -100, 0, 20)
-                DescLabel.Position = UDim2.fromOffset(15, 33)
-                DescLabel.BackgroundTransparency = 1
-                DescLabel.Text = description
-                DescLabel.TextColor3 = Theme.TextSecondary
-                DescLabel.Font = Theme.FontText
-                DescLabel.TextSize = 14
-                DescLabel.TextXAlignment = Enum.TextXAlignment.Left
-            end
-
-            -- iOS 风格的右侧箭头 ('>')
-            local Arrow = Instance.new("TextLabel", ButtonFrame)
-            Arrow.Size = UDim2.fromOffset(20, 20)
-            Arrow.Position = UDim2.new(1, -30, 0.5, 0)
-            Arrow.AnchorPoint = Vector2.new(0.5, 0.5)
-            Arrow.BackgroundTransparency = 1
-            Arrow.Text = ">" -- 用文本代替图标
-            Arrow.TextColor3 = Theme.TextSecondary
-            Arrow.Font = Enum.Font.GothamMedium
-            Arrow.TextSize = 20
-
-            -- 点击动画 (iOS 风格反馈)
-            ButtonFrame.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(48, 48, 50)}):Play()
-                end
-            end)
-            ButtonFrame.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    TweenService:Create(ButtonFrame, TweenInfo.new(0.15), {BackgroundColor3 = Theme.Secondary}):Play()
-                end
-            end)
-
-            ButtonFrame.MouseButton1Click:Connect(callback)
-        end
-        return Elements
+        Btn.MouseButton1Click:Connect(function()
+            TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(50,50,50)}):Play()
+            task.wait(0.1)
+            TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.Secondary}):Play()
+            callback()
+        end)
+    end
+    
+    function Methods:Destroy()
+        ScreenGui:Destroy()
     end
 
-    return Pages
+    return Methods
 end
 
 return zhiUI
