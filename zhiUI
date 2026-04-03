@@ -1,4 +1,4 @@
--- [[ zhiUI Framework - Jelly & Mac-iOS Hybrid ]] --
+-- [[ zhiUI Framework - Jelly & Mac-iOS Hybrid (Full Version) ]] --
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -60,7 +60,7 @@ end
 function zhiUI:CreateWindow(config)
     local Lib = { CurrentTab = nil }
     local TitleText = config.Title or "zhiUI Hub"
-    
+
     local ScreenGui = Instance.new("ScreenGui", Parent)
     ScreenGui.Name = "zhiUI_" .. math.random(1,1000)
     ScreenGui.ResetOnSpawn = false
@@ -82,14 +82,14 @@ function zhiUI:CreateWindow(config)
     Mini.Visible = false
     Mini.ClipsDescendants = true
     Instance.new("UICorner", Mini).CornerRadius = UDim.new(1, 0)
-    
+
     local DragIcon = Instance.new("TextLabel", Mini)
     DragIcon.Size = UDim2.new(0, 45, 1, 0)
     DragIcon.BackgroundTransparency = 1
     DragIcon.Text = "+"
     DragIcon.TextColor3 = Theme.TextSecondary
     DragIcon.TextSize = 20
-    
+
     local ClickOpen = Instance.new("TextButton", Mini)
     ClickOpen.Size = UDim2.new(1, -50, 1, 0)
     ClickOpen.Position = UDim2.fromOffset(50, 0)
@@ -112,7 +112,7 @@ function zhiUI:CreateWindow(config)
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
     MakeDraggable(Main, Main)
 
-    -- [ 折叠逻辑：果冻缩放 ] --
+    -- [ 折叠逻辑 ] --
     local function ToggleUI(show)
         if show then
             Main.Visible = true
@@ -131,7 +131,7 @@ function zhiUI:CreateWindow(config)
         end
     end
 
-    -- 顶部栏按钮
+    -- 顶部栏
     local TopBar = Instance.new("Frame", Main)
     TopBar.Size = UDim2.new(1, 0, 0, 50)
     TopBar.BackgroundTransparency = 1
@@ -147,7 +147,7 @@ function zhiUI:CreateWindow(config)
         if i == 1 then b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
         elseif i == 2 then b.MouseButton1Click:Connect(function() ToggleUI(false) end) end
     end
-    
+
     ClickOpen.MouseButton1Click:Connect(function() ToggleUI(true) end)
 
     local Title = Instance.new("TextLabel", TopBar)
@@ -184,8 +184,8 @@ function zhiUI:CreateWindow(config)
         TabBtn.TextColor3 = Theme.TextSecondary
         TabBtn.Font = Enum.Font.GothamBold
         TabBtn.TextSize = 16
-        JellyTab(TabBtn) -- 加入Tab切换的微动效果
-        
+        JellyTab(TabBtn)
+
         local Page = Instance.new("ScrollingFrame", Container)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
@@ -203,6 +203,8 @@ function zhiUI:CreateWindow(config)
         if not Lib.CurrentTab then Lib.CurrentTab = Page Page.Visible = true TabBtn.TextColor3 = Theme.Text end
 
         local Elements = {}
+        
+        -- [ 按钮组件 ] --
         function Elements:AddButton(text, callback)
             local b = Instance.new("TextButton", Page)
             b.Size = UDim2.new(0.95, 0, 0, 50)
@@ -213,10 +215,11 @@ function zhiUI:CreateWindow(config)
             b.Font = Enum.Font.GothamBold
             b.TextSize = 17
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-            JellyClick(b) -- 加入果冻按钮效果
+            JellyClick(b)
             b.MouseButton1Click:Connect(callback)
         end
 
+        -- [ 开关组件 ] --
         function Elements:AddToggle(text, default, callback)
             local state = default or false
             local ToggleFrame = Instance.new("Frame", Page)
@@ -224,7 +227,7 @@ function zhiUI:CreateWindow(config)
             ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
             ToggleFrame.BackgroundTransparency = 0.4
             Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 10)
-            
+
             local Label = Instance.new("TextLabel", ToggleFrame)
             Label.Size = UDim2.new(0.7, 0, 1, 0)
             Label.Position = UDim2.fromOffset(15, 0)
@@ -241,7 +244,7 @@ function zhiUI:CreateWindow(config)
             SwitchBG.BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(70, 70, 70)
             SwitchBG.Text = ""
             Instance.new("UICorner", SwitchBG).CornerRadius = UDim.new(1, 0)
-            
+
             local Dot = Instance.new("Frame", SwitchBG)
             Dot.Size = UDim2.fromOffset(20, 20)
             Dot.Position = state and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
@@ -257,6 +260,82 @@ function zhiUI:CreateWindow(config)
                 callback(state)
             end)
         end
+
+        -- [ 滑动条组件 ] --
+        function Elements:AddSlider(text, min, max, default, callback)
+            local SliderFrame = Instance.new("Frame", Page)
+            SliderFrame.Size = UDim2.new(0.95, 0, 0, 65)
+            SliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            SliderFrame.BackgroundTransparency = 0.4
+            Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 10)
+
+            local Label = Instance.new("TextLabel", SliderFrame)
+            Label.Size = UDim2.new(0.7, 0, 0, 30)
+            Label.Position = UDim2.fromOffset(15, 5)
+            Label.BackgroundTransparency = 1
+            Label.Text = text
+            Label.TextColor3 = Theme.Text
+            Label.Font = Enum.Font.GothamBold
+            Label.TextSize = 16
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+
+            local ValueLabel = Instance.new("TextLabel", SliderFrame)
+            ValueLabel.Size = UDim2.new(0.2, 0, 0, 30)
+            ValueLabel.Position = UDim2.new(1, -70, 0, 5)
+            ValueLabel.BackgroundTransparency = 1
+            ValueLabel.Text = tostring(default or min)
+            ValueLabel.TextColor3 = Theme.Accent
+            ValueLabel.Font = Enum.Font.Code
+            ValueLabel.TextSize = 16
+            ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+            local SliderBar = Instance.new("TextButton", SliderFrame)
+            SliderBar.Size = UDim2.new(0.9, 0, 0, 6)
+            SliderBar.Position = UDim2.new(0.05, 0, 0, 45)
+            SliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            SliderBar.Text = ""
+            SliderBar.AutoButtonColor = false
+            Instance.new("UICorner", SliderBar).CornerRadius = UDim.new(1, 0)
+
+            local Fill = Instance.new("Frame", SliderBar)
+            Fill.Size = UDim2.fromScale(math.clamp((default - min) / (max - min), 0, 1), 1)
+            Fill.BackgroundColor3 = Theme.Accent
+            Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+            local SliderDot = Instance.new("Frame", Fill)
+            SliderDot.Size = UDim2.fromOffset(14, 14)
+            SliderDot.Position = UDim2.new(1, -7, 0.5, -7)
+            SliderDot.BackgroundColor3 = Color3.new(1, 1, 1)
+            Instance.new("UICorner", SliderDot).CornerRadius = UDim.new(1, 0)
+
+            local dragging = false
+            local function UpdateSlider()
+                local mousePos = UserInputService:GetMouseLocation().X
+                local barPos = SliderBar.AbsolutePosition.X
+                local barSize = SliderBar.AbsoluteSize.X
+                local percent = math.clamp((mousePos - barPos) / barSize, 0, 1)
+                
+                local val = math.floor(min + (max - min) * percent)
+                TweenService:Create(Fill, TweenInfo.new(0.1), {Size = UDim2.fromScale(percent, 1)}):Play()
+                ValueLabel.Text = tostring(val)
+                callback(val)
+            end
+
+            SliderBar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true UpdateSlider()
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    UpdateSlider()
+                end
+            end)
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
+
         return Elements
     end
     return Lib
