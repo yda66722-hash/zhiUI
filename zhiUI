@@ -1,5 +1,5 @@
 -- [[ zhiUI Framework - Optimized Mac-iOS Hybrid ]] --
--- 优化点：半透明质感、现代开关按钮、更流畅的动画
+-- 去除了胶囊线条，增加了丝滑开关，优化透明度
 
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
@@ -8,18 +8,18 @@ local CoreGui = game:GetService("CoreGui")
 
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 清理旧UI
+-- 清理旧UI (防止多次运行叠加)
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
 end
 
 local Theme = {
-    Main = Color3.fromRGB(20, 20, 20),
-    Sidebar = Color3.fromRGB(28, 28, 28),
-    Accent = Color3.fromRGB(0, 122, 255), -- 经典的 iOS 蓝色
+    Main = Color3.fromRGB(25, 25, 25),
+    Sidebar = Color3.fromRGB(32, 32, 32),
+    Accent = Color3.fromRGB(0, 122, 255), -- iOS 蓝色
     Text = Color3.fromRGB(255, 255, 255),
     TextSecondary = Color3.fromRGB(160, 160, 160),
-    Trans = 0.15 -- 整体透明度
+    Trans = 0.1 -- 整体背景透明度
 }
 
 local function MakeDraggable(obj)
@@ -32,7 +32,7 @@ local function MakeDraggable(obj)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            TweenService:Create(obj, TweenInfo.new(0.1), {Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)}):Play()
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
     obj.InputEnded:Connect(function(input)
@@ -46,8 +46,9 @@ function zhiUI:CreateWindow(config)
     
     local ScreenGui = Instance.new("ScreenGui", Parent)
     ScreenGui.Name = "zhiUI_" .. math.random(1,1000)
+    ScreenGui.ResetOnSpawn = false
 
-    -- 胶囊小窗
+    -- 1. 胶囊小窗 (精简版：无边框线条)
     local Mini = Instance.new("TextButton", ScreenGui)
     Mini.Size = UDim2.fromOffset(180, 40)
     Mini.Position = UDim2.new(0.5, -90, 0, 60)
@@ -55,21 +56,19 @@ function zhiUI:CreateWindow(config)
     Mini.BackgroundTransparency = 0.1
     Mini.Visible = false
     Mini.Text = ""
+    Mini.AutoButtonColor = false
     Instance.new("UICorner", Mini).CornerRadius = UDim.new(1, 0)
-    local MiniStroke = Instance.new("UIStroke", Mini)
-    MiniStroke.Thickness = 2
-    MiniStroke.Color = Theme.Accent
     
     local MiniLabel = Instance.new("TextLabel", Mini)
     MiniLabel.Size = UDim2.new(1, 0, 1, 0)
-    MiniLabel.Text = "Show Hub"
+    MiniLabel.Text = "展开 " .. TitleText
     MiniLabel.TextColor3 = Theme.Text
     MiniLabel.BackgroundTransparency = 1
     MiniLabel.Font = Enum.Font.GothamBold
     MiniLabel.TextSize = 14
     MakeDraggable(Mini)
 
-    -- 主窗口
+    -- 2. 主窗口
     local Main = Instance.new("Frame", ScreenGui)
     Main.Size = UDim2.fromOffset(550, 380)
     Main.Position = UDim2.fromScale(0.5, 0.5)
@@ -78,12 +77,6 @@ function zhiUI:CreateWindow(config)
     Main.BackgroundTransparency = Theme.Trans
     Main.BorderSizePixel = 0
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
-    
-    local MainStroke = Instance.new("UIStroke", Main)
-    MainStroke.Color = Color3.fromRGB(60, 60, 60)
-    MainStroke.Thickness = 1.2
-    MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    
     MakeDraggable(Main)
 
     -- 顶部栏
@@ -91,7 +84,7 @@ function zhiUI:CreateWindow(config)
     TopBar.Size = UDim2.new(1, 0, 0, 50)
     TopBar.BackgroundTransparency = 1
 
-    -- 红黄绿按钮 (优化间距)
+    -- Mac 风格按钮
     local Buttons = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
     for i, color in ipairs(Buttons) do
         local b = Instance.new("TextButton", TopBar)
@@ -101,9 +94,9 @@ function zhiUI:CreateWindow(config)
         b.Text = ""
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
         
-        if i == 1 then
+        if i == 1 then -- 关闭
             b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-        elseif i == 2 then
+        elseif i == 2 then -- 缩小
             b.MouseButton1Click:Connect(function() 
                 Main.Visible = false Mini.Visible = true 
             end)
@@ -124,7 +117,7 @@ function zhiUI:CreateWindow(config)
     Title.TextSize = 20
     Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- 侧边栏 (加点透明)
+    -- 3. 侧边栏
     local Sidebar = Instance.new("Frame", Main)
     Sidebar.Size = UDim2.new(0, 160, 1, -50)
     Sidebar.Position = UDim2.fromOffset(0, 50)
@@ -134,9 +127,10 @@ function zhiUI:CreateWindow(config)
     Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 14)
 
     local SideLayout = Instance.new("UIListLayout", Sidebar)
-    SideLayout.Padding = UDim.new(0, 8)
+    SideLayout.Padding = UDim.new(0, 5)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
+    -- 内容区
     local Container = Instance.new("Frame", Main)
     Container.Size = UDim2.new(1, -180, 1, -70)
     Container.Position = UDim2.fromOffset(170, 60)
@@ -155,20 +149,17 @@ function zhiUI:CreateWindow(config)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
         Page.Visible = false
-        Page.ScrollBarThickness = 2
-        Page.ScrollBarImageColor3 = Theme.Accent
+        Page.ScrollBarThickness = 0
         local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0, 12)
+        PageLayout.Padding = UDim.new(0, 10)
 
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(Container:GetChildren()) do v.Visible = false end
             for _, v in pairs(Sidebar:GetChildren()) do 
-                if v:IsA("TextButton") then 
-                    TweenService:Create(v, TweenInfo.new(0.3), {TextColor3 = Theme.TextSecondary}):Play()
-                end 
+                if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end 
             end
             Page.Visible = true
-            TweenService:Create(TabBtn, TweenInfo.new(0.3), {TextColor3 = Theme.Text}):Play()
+            TabBtn.TextColor3 = Theme.Text
         end)
 
         if not Lib.CurrentTab then
@@ -178,14 +169,14 @@ function zhiUI:CreateWindow(config)
         end
 
         local Elements = {}
-        
-        -- 开关按钮实现
+
+        -- 开关功能 (Toggle)
         function Elements:AddToggle(text, default, callback)
             local state = default or false
             local ToggleFrame = Instance.new("Frame", Page)
-            ToggleFrame.Size = UDim2.new(0.95, 0, 0, 55)
+            ToggleFrame.Size = UDim2.new(0.95, 0, 0, 50)
             ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            ToggleFrame.BackgroundTransparency = 0.3
+            ToggleFrame.BackgroundTransparency = 0.4
             Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 10)
             
             local Label = Instance.new("TextLabel", ToggleFrame)
@@ -215,31 +206,24 @@ function zhiUI:CreateWindow(config)
                 state = not state
                 local targetPos = state and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
                 local targetCol = state and Theme.Accent or Color3.fromRGB(70, 70, 70)
-                
                 TweenService:Create(Dot, TweenInfo.new(0.2), {Position = targetPos}):Play()
                 TweenService:Create(SwitchBG, TweenInfo.new(0.2), {BackgroundColor3 = targetCol}):Play()
                 callback(state)
             end)
         end
 
+        -- 按钮功能 (Button)
         function Elements:AddButton(text, callback)
             local b = Instance.new("TextButton", Page)
             b.Size = UDim2.new(0.95, 0, 0, 50)
-            b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            b.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
             b.BackgroundTransparency = 0.4
             b.Text = text
             b.TextColor3 = Theme.Text
             b.Font = Enum.Font.GothamBold
             b.TextSize = 17
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-            
-            b.MouseButton1Down:Connect(function()
-                TweenService:Create(b, TweenInfo.new(0.1), {BackgroundTransparency = 0.7}):Play()
-            end)
-            b.MouseButton1Up:Connect(function()
-                TweenService:Create(b, TweenInfo.new(0.1), {BackgroundTransparency = 0.4}):Play()
-                callback()
-            end)
+            b.MouseButton1Click:Connect(callback)
         end
 
         return Elements
