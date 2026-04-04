@@ -37,6 +37,7 @@ local CoreGui = game:GetService("CoreGui")
 
 local Parent = gethui and gethui() or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
+-- 自动清理旧 UI
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
 end
@@ -50,6 +51,7 @@ local Theme = {
     Trans = 0.1
 }
 
+-- 动画辅助函数
 local function JellyTab(obj)
     obj.MouseEnter:Connect(function()
         TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0.9, 0, 0, 48)}):Play()
@@ -101,6 +103,7 @@ function zhiUI:CreateWindow(config)
     UpdateScale()
     workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
 
+    -- 最小化后的悬浮球
     local Mini = Instance.new("Frame", ScreenGui)
     Mini.Size = UDim2.fromOffset(200, 45)
     Mini.Position = UDim2.new(0.5, -100, 0, 50)
@@ -127,6 +130,7 @@ function zhiUI:CreateWindow(config)
     ClickOpen.TextSize = 14
     MakeDraggable(DragIcon, Mini)
 
+    -- 主窗体
     local Main = Instance.new("Frame", ScreenGui)
     local MainSize = UDim2.fromOffset(550, 380)
     Main.Size = MainSize
@@ -213,8 +217,14 @@ function zhiUI:CreateWindow(config)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
         Page.Visible = false
-        Page.ScrollBarThickness = 0
-        Instance.new("UIListLayout", Page).Padding = UDim.new(0, 10)
+        Page.ScrollBarThickness = 2
+        Page.ScrollBarImageColor3 = Theme.Accent
+        Page.CanvasSize = UDim2.new(0,0,0,0) -- 自动计算大小
+        local PageLayout = Instance.new("UIListLayout", Page)
+        PageLayout.Padding = UDim.new(0, 10)
+        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            Page.CanvasSize = UDim2.fromOffset(0, PageLayout.AbsoluteContentSize.Y + 10)
+        end)
 
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(Container:GetChildren()) do v.Visible = false end
@@ -227,6 +237,7 @@ function zhiUI:CreateWindow(config)
 
         local Elements = {}
 
+        -- 按钮
         function Elements:AddButton(text, callback)
             local b = Instance.new("TextButton", Page)
             b.Size = UDim2.new(0.95, 0, 0, 50)
@@ -241,6 +252,7 @@ function zhiUI:CreateWindow(config)
             b.MouseButton1Click:Connect(callback or function() end)
         end
 
+        -- 开关
         function Elements:AddToggle(text, default, callback)
             local state = default or false
             local ToggleFrame = Instance.new("Frame", Page)
@@ -282,6 +294,7 @@ function zhiUI:CreateWindow(config)
             end)
         end
 
+        -- 滑块
         function Elements:AddSlider(text, min, max, default, callback)
             local SliderFrame = Instance.new("Frame", Page)
             SliderFrame.Size = UDim2.new(0.95, 0, 0, 65)
@@ -377,6 +390,78 @@ function zhiUI:CreateWindow(config)
                     TweenService:Create(BubbleText, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
                 end
             end)
+        end
+
+        -- [新增功能] 下拉选择框
+        function Elements:AddDropdown(text, list, callback)
+            local DropdownFrame = Instance.new("Frame", Page)
+            DropdownFrame.Size = UDim2.new(0.95, 0, 0, 50)
+            DropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            DropdownFrame.BackgroundTransparency = 0.4
+            DropdownFrame.ClipsDescendants = true
+            Instance.new("UICorner", DropdownFrame).CornerRadius = UDim.new(0, 10)
+
+            local DropBtn = Instance.new("TextButton", DropdownFrame)
+            DropBtn.Size = UDim2.new(1, 0, 0, 50)
+            DropBtn.BackgroundTransparency = 1
+            DropBtn.Text = ""
+
+            local Label = Instance.new("TextLabel", DropBtn)
+            Label.Size = UDim2.new(1, -50, 1, 0)
+            Label.Position = UDim2.fromOffset(15, 0)
+            Label.BackgroundTransparency = 1
+            Label.Text = text .. " :  ..."
+            Label.TextColor3 = Theme.Text
+            Label.Font = Enum.Font.GothamBold
+            Label.TextSize = 16
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+
+            local Arrow = Instance.new("TextLabel", DropBtn)
+            Arrow.Size = UDim2.fromOffset(50, 50)
+            Arrow.Position = UDim2.new(1, -50, 0, 0)
+            Arrow.BackgroundTransparency = 1
+            Arrow.Text = "▼"
+            Arrow.TextColor3 = Theme.TextSecondary
+            Arrow.TextSize = 14
+
+            local OptionContainer = Instance.new("Frame", DropdownFrame)
+            OptionContainer.Size = UDim2.new(1, 0, 0, #list * 35)
+            OptionContainer.Position = UDim2.fromOffset(0, 50)
+            OptionContainer.BackgroundTransparency = 1
+            local Layout = Instance.new("UIListLayout", OptionContainer)
+            Layout.Padding = UDim.new(0, 2)
+            Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+            local isDropped = false
+            DropBtn.MouseButton1Click:Connect(function()
+                isDropped = not isDropped
+                local targetSize = isDropped and UDim2.new(0.95, 0, 0, 55 + (#list * 37)) or UDim2.new(0.95, 0, 0, 50)
+                TweenService:Create(DropdownFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {Size = targetSize}):Play()
+                TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = isDropped and 180 or 0}):Play()
+            end)
+
+            for _, option in pairs(list) do
+                local opt = Instance.new("TextButton", OptionContainer)
+                opt.Size = UDim2.new(0.9, 0, 0, 35)
+                opt.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+                opt.BackgroundTransparency = 0.5
+                opt.Text = tostring(option)
+                opt.TextColor3 = Theme.TextSecondary
+                opt.Font = Enum.Font.Gotham
+                opt.TextSize = 14
+                Instance.new("UICorner", opt).CornerRadius = UDim.new(0, 6)
+                
+                opt.MouseEnter:Connect(function() opt.TextColor3 = Theme.Text opt.BackgroundTransparency = 0.2 end)
+                opt.MouseLeave:Connect(function() opt.TextColor3 = Theme.TextSecondary opt.BackgroundTransparency = 0.5 end)
+
+                opt.MouseButton1Click:Connect(function()
+                    Label.Text = text .. " :  " .. tostring(option)
+                    isDropped = false
+                    TweenService:Create(DropdownFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {Size = UDim2.new(0.95, 0, 0, 50)}):Play()
+                    TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = 0}):Play()
+                    callback(option)
+                end)
+            end
         end
 
         return Elements
