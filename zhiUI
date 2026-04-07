@@ -178,7 +178,7 @@ function zhiUI:CreateWindow(config)
             Box.AnchorPoint = Vector2.new(1, 0)
             Box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
             Box.Text = ""
-            Box.PlaceholderText = placeholder or "输入..."
+            Box.PlaceholderText = placeholder or "..."
             Box.TextColor3 = Theme.Text
             Box.PlaceholderColor3 = Theme.TextSecondary
             Box.Font = Enum.Font.Gotham
