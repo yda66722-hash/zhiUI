@@ -1,14 +1,16 @@
 -- ========================================================
--- zhiUI 2.0 (全修正版：修复移动端显示、剪裁隐藏与动态拉伸)
+-- zhiUI 2.0 (终极全修复版：修正坐标偏移、下拉框遮挡与动态布局)
 -- ========================================================
 
 local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
 
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
+-- 清理旧 UI
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
 end
@@ -102,7 +104,7 @@ function zhiUI:CreateWindow(config)
     ScreenGui.Name = "zhiUI_" .. math.random(1000, 9999)
     ScreenGui.ResetOnSpawn = false
 
-    -- 动态适配屏幕尺寸 (适中比例)
+    -- 动态适配屏幕尺寸
     local UIScale = Instance.new("UIScale", ScreenGui)
     local function ScaleAdjust()
         local vp = workspace.CurrentCamera.ViewportSize
@@ -164,13 +166,13 @@ function zhiUI:CreateWindow(config)
     SideLayout.Padding = UDim.new(0, 4)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    -- 内容主容器 (修正高度与显示区域)
+    -- 内容主容器
     local Container = Instance.new("Frame", Main)
     Container.Size = UDim2.new(1, -130, 1, -44)
     Container.Position = UDim2.fromOffset(125, 40)
     Container.BackgroundTransparency = 1
 
-    local function createTabInternal(selfObj, tabConfig)
+    function Lib:AddTab(tabConfig)
         local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
         local Elements = {}
 
@@ -182,7 +184,7 @@ function zhiUI:CreateWindow(config)
         TabBtn.Font = Enum.Font.GothamBold
         TabBtn.TextSize = 12
 
-        -- 页面容器 (解决按钮丢失的关键点)
+        -- 页面容器
         local Page = Instance.new("ScrollingFrame", Container)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
@@ -280,7 +282,7 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 添加 Slider
+        -- 添加 Slider (修正触摸与鼠标屏幕偏移)
         function Elements:AddSlider(cfg)
             local text = cfg.Text or "Slider"
             local min = cfg.Min or 0
@@ -326,8 +328,10 @@ function zhiUI:CreateWindow(config)
             Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
 
             local dragging = false
-            local function Update()
-                local p = math.clamp((UserInputService:GetMouseLocation().X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            local function Update(input)
+                local mousePos = input and input.Position.X or UserInputService:GetMouseLocation().X
+                local inset = GuiService:GetGuiInset().Y
+                local p = math.clamp((mousePos - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
                 Fill.Size = UDim2.fromScale(p, 1)
                 local val = math.floor(min + (max - min) * p)
                 ValL.Text = tostring(val)
@@ -337,12 +341,12 @@ function zhiUI:CreateWindow(config)
             SFrame.InputBegan:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
                     dragging = true
-                    Update()
+                    Update(i)
                 end
             end)
             UserInputService.InputChanged:Connect(function(i)
                 if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-                    Update()
+                    Update(i)
                 end
             end)
             UserInputService.InputEnded:Connect(function(i)
@@ -353,7 +357,7 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 添加 Dropdown
+        -- 添加 Dropdown (修复展开推挤与裁切问题)
         function Elements:AddDropdown(cfg)
             local list = cfg.List or {}
             local callback = cfg.Callback or function() end
@@ -377,7 +381,8 @@ function zhiUI:CreateWindow(config)
             local dropped = false
             Btn.MouseButton1Click:Connect(function()
                 dropped = not dropped
-                TweenService:Create(DFrame, TweenInfo.new(0.2), {Size = dropped and UDim2.new(0.96, 0, 0, 34 + #list*26) or UDim2.new(0.96, 0, 0, 34)}):Play()
+                local targetSize = dropped and UDim2.new(0.96, 0, 0, 34 + #list * 26) or UDim2.new(0.96, 0, 0, 34)
+                TweenService:Create(DFrame, TweenInfo.new(0.2), {Size = targetSize}):Play()
             end)
 
             for idx, v in pairs(list) do
@@ -435,7 +440,7 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- Batch Add
+        -- 批量添加 Add
         function Elements:Add(tbl)
             if type(tbl) == "table" then
                 for _, item in ipairs(tbl) do
@@ -451,7 +456,7 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- Label & Divider
+        -- 标签与分割线
         function Elements:AddLabel(text)
             local L = Instance.new("TextLabel", Page)
             L.Size = UDim2.new(0.96, 0, 0, 20)
@@ -475,7 +480,6 @@ function zhiUI:CreateWindow(config)
         return Elements
     end
 
-    Lib.AddTab = createTabInternal
     return Lib
 end
 
