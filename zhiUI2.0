@@ -1,0 +1,330 @@
+local zhiUI = {}
+zhiUI.__index = zhiUI
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- 主题调色盘 (Wind/Modern Glass 风格)
+local Theme = {
+    Background = Color3.fromRGB(15, 23, 42),
+    Sidebar = Color3.fromRGB(11, 15, 26),
+    Card = Color3.fromRGB(24, 32, 53),
+    Accent = Color3.fromRGB(99, 102, 241),
+    TextMain = Color3.fromRGB(248, 250, 252),
+    TextSub = Color3.fromRGB(148, 163, 184),
+    Border = Color3.fromRGB(255, 255, 255),
+    BorderTrans = 0.92
+}
+
+-- 初始化主窗口
+function zhiUI:CreateWindow(titleText)
+    local window = setmetatable({}, zhiUI)
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "zhiUI_Window"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = (gethui and gethui()) or CoreGui
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 580, 0, 380)
+    mainFrame.Position = UDim2.new(0.5, -290, 0.5, -190)
+    mainFrame.BackgroundColor3 = Theme.Background
+    mainFrame.BackgroundTransparency = 0.15
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = screenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = mainFrame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Theme.Border
+    stroke.Transparency = Theme.BorderTrans
+    stroke.Thickness = 1
+    stroke.Parent = mainFrame
+
+    -- 拖拽支持
+    local dragging, dragInput, dragStart, startPos
+    mainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    mainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- 侧边栏
+    local sidebar = Instance.new("Frame")
+    sidebar.Name = "Sidebar"
+    sidebar.Size = UDim2.new(0, 150, 1, 0)
+    sidebar.BackgroundColor3 = Theme.Sidebar
+    sidebar.BackgroundTransparency = 0.2
+    sidebar.BorderSizePixel = 0
+    sidebar.Parent = mainFrame
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -20, 0, 40)
+    titleLabel.Position = UDim2.new(0, 10, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = titleText or "zhiUI"
+    titleLabel.TextColor3 = Theme.TextMain
+    titleLabel.TextSize = 16
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = sidebar
+
+    local tabContainer = Instance.new("Frame")
+    tabContainer.Size = UDim2.new(1, -16, 1, -60)
+    tabContainer.Position = UDim2.new(0, 8, 0, 50)
+    tabContainer.BackgroundTransparency = 1
+    tabContainer.Parent = sidebar
+
+    local tabList = Instance.new("UIListLayout")
+    tabList.Padding = UDim.new(0, 6)
+    tabList.SortOrder = Enum.SortOrder.LayoutOrder
+    tabList.Parent = tabContainer
+
+    -- 内容展示区
+    local contentArea = Instance.new("Frame")
+    contentArea.Name = "ContentArea"
+    contentArea.Size = UDim2.new(1, -150, 1, 0)
+    contentArea.Position = UDim2.new(0, 150, 0, 0)
+    contentArea.BackgroundTransparency = 1
+    contentArea.Parent = mainFrame
+
+    window.MainFrame = mainFrame
+    window.TabContainer = tabContainer
+    window.ContentArea = contentArea
+    window.Tabs = {}
+
+    return window
+end
+
+-- 方式 1/2: 创建页面 (AddPage / AddTab / CreatePage)
+local function createTabInternal(window, tabConfig)
+    local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
+    local tab = {}
+
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Size = UDim2.new(1, 0, 0, 32)
+    tabBtn.BackgroundColor3 = Theme.Accent
+    tabBtn.BackgroundTransparency = 1
+    tabBtn.Text = "  " .. name
+    tabBtn.TextColor3 = Theme.TextSub
+    tabBtn.TextSize = 13
+    tabBtn.Font = Enum.Font.GothamMedium
+    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    tabBtn.AutoButtonColor = false
+    tabBtn.Parent = window.TabContainer
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = tabBtn
+
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, -20, 1, -20)
+    page.Position = UDim2.new(0, 10, 0, 10)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Theme.Accent
+    page.Visible = false
+    page.Parent = window.ContentArea
+
+    local pageList = Instance.new("UIListLayout")
+    pageList.Padding = UDim.new(0, 8)
+    pageList.SortOrder = Enum.SortOrder.LayoutOrder
+    pageList.Parent = page
+
+    tab.Page = page
+    tab.Btn = tabBtn
+
+    local function selectTab()
+        for _, t in pairs(window.Tabs) do
+            t.Page.Visible = false
+            TweenService:Create(t.Btn, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Theme.TextSub}):Play()
+        end
+        page.Visible = true
+        TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, TextColor3 = Theme.TextMain}):Play()
+    end
+
+    tabBtn.MouseButton1Click:Connect(selectTab)
+
+    if #window.Tabs == 0 then selectTab() end
+    table.insert(window.Tabs, tab)
+
+    -- 通用构建器模式与多传参语法解析
+    local function parseArgs(...)
+        local args = {...}
+        if type(args[1]) == "table" then
+            return args[1]
+        end
+        return nil, args
+    end
+
+    -- ==================== 1. 按钮 (Button) ====================
+    local function addBtnLogic(configTable)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 38)
+        btn.BackgroundColor3 = Theme.Card
+        btn.Text = configTable.Text or "Button"
+        btn.TextColor3 = Theme.TextMain
+        btn.TextSize = 13
+        btn.Font = Enum.Font.GothamSemibold
+        btn.AutoButtonColor = false
+        btn.Parent = page
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = btn
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Theme.Border
+        stroke.Transparency = Theme.BorderTrans
+        stroke.Parent = btn
+
+        local callback = configTable.Callback or function() end
+        btn.MouseButton1Click:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.08), {Size = UDim2.new(1, -4, 0, 36)}):Play()
+            task.wait(0.08)
+            TweenService:Create(btn, TweenInfo.new(0.08), {Size = UDim2.new(1, 0, 0, 38)}):Play()
+            callback()
+        end)
+        return btn
+    end
+
+    function tab:AddButton(...)
+        local cfg, raw = parseArgs(...)
+        if cfg then return addBtnLogic(cfg) end
+        return addBtnLogic({Text = raw[1], Callback = raw[2]})
+    end
+    tab.CreateButton = tab.AddButton
+    tab.Button = tab.AddButton
+
+    -- ==================== 2. 开关 (Toggle) ====================
+    local function addToggleLogic(configTable)
+        local toggled = configTable.Default or false
+        local callback = configTable.Callback or function() end
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 0, 42)
+        frame.BackgroundColor3 = Theme.Card
+        frame.Parent = page
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = frame
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -60, 1, 0)
+        label.Position = UDim2.new(0, 12, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = configTable.Text or "Toggle"
+        label.TextColor3 = Theme.TextMain
+        label.TextSize = 13
+        label.Font = Enum.Font.GothamMedium
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = frame
+
+        local switch = Instance.new("Frame")
+        switch.Size = UDim2.new(0, 36, 0, 20)
+        switch.Position = UDim2.new(1, -48, 0.5, -10)
+        switch.BackgroundColor3 = toggled and Theme.Accent or Color3.fromRGB(45, 55, 72)
+        switch.Parent = frame
+
+        local switchCorner = Instance.new("UICorner")
+        switchCorner.CornerRadius = UDim.new(1, 0)
+        switchCorner.Parent = switch
+
+        local dot = Instance.new("Frame")
+        dot.Size = UDim2.new(0, 14, 0, 14)
+        dot.Position = toggled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        dot.BackgroundColor3 = Theme.TextMain
+        dot.Parent = switch
+
+        local dotCorner = Instance.new("UICorner")
+        dotCorner.CornerRadius = UDim.new(1, 0)
+        dotCorner.Parent = dot
+
+        local clickBtn = Instance.new("TextButton")
+        clickBtn.Size = UDim2.new(1, 0, 1, 0)
+        clickBtn.BackgroundTransparency = 1
+        clickBtn.Text = ""
+        clickBtn.Parent = frame
+
+        clickBtn.MouseButton1Click:Connect(function()
+            toggled = not toggled
+            local targetPos = toggled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+            local targetColor = toggled and Theme.Accent or Color3.fromRGB(45, 55, 72)
+
+            TweenService:Create(dot, TweenInfo.new(0.2), {Position = targetPos}):Play()
+            TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
+            callback(toggled)
+        end)
+        return frame
+    end
+
+    function tab:AddToggle(...)
+        local cfg, raw = parseArgs(...)
+        if cfg then return addToggleLogic(cfg) end
+        return addToggleLogic({Text = raw[1], Default = raw[2], Callback = raw[3]})
+    end
+    tab.CreateToggle = tab.AddToggle
+    tab.Toggle = tab.AddToggle
+
+    -- ==================== 3. 标签/描述 (Label) ====================
+    function tab:AddLabel(text)
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 0, 24)
+        label.BackgroundTransparency = 1
+        label.Text = text or ""
+        label.TextColor3 = Theme.TextSub
+        label.TextSize = 12
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = page
+        return label
+    end
+
+    -- 支持批量配置注入：tab:Add({ {Type="Button", ...}, {Type="Toggle", ...} })
+    function tab:Add(components)
+        if type(components) == "table" then
+            for _, item in ipairs(components) do
+                local cType = item.Type or item[1]
+                if cType == "Button" then
+                    tab:AddButton(item)
+                elseif cType == "Toggle" then
+                    tab:AddToggle(item)
+                elseif cType == "Label" then
+                    tab:AddLabel(item.Text or item[2])
+                end
+            end
+        end
+        return tab
+    end
+
+    return tab
+end
+
+-- 各种不同页面创建语法的别名绑定
+zhiUI.AddTab = createTabInternal
+zhiUI.AddPage = createTabInternal
+zhiUI.CreatePage = createTabInternal
+zhiUI.Tab = createTabInternal
+
+return zhiUI
