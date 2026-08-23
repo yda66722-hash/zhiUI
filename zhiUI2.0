@@ -261,6 +261,7 @@ function zhiUI:CreateWindow(config)
     local ScreenGui = Instance.new("ScreenGui", Parent)
     ScreenGui.Name = "zhiUI_" .. math.random(1000, 9999)
     ScreenGui.ResetOnSpawn = false
+    Lib.ScreenGui = ScreenGui
 
     local UIScale = Instance.new("UIScale", ScreenGui)
     local function ScaleAdjust()
@@ -291,6 +292,7 @@ function zhiUI:CreateWindow(config)
     
     local dragCleaner = MakeDraggable(Main, Main)
     table.insert(Lib.Connections, {Disconnect = dragCleaner})
+    Lib.Main = Main
 
     -- 顶栏
     local TopBar = Instance.new("Frame", Main)
@@ -307,10 +309,19 @@ function zhiUI:CreateWindow(config)
     TitleLabel.TextSize = 13
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- 红/黄/绿 三个圆点：红=关闭，黄=最小化，绿=预留(可扩展为置顶等)
+    -- 红/黄/绿 三个圆点：红=删除(销毁)，黄=隐藏(不销毁，可用快捷键唤出)，绿=最小化(收起/还原)
+    local ToggleKey = (type(config) == "table" and config.ToggleKey) or Enum.KeyCode.RightControl
     local Colors = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
     local minimized = false
     local BodyHeightBeforeMin = Main.Size
+
+    -- 全局快捷键：即使窗口被隐藏(Main.Visible = false)也能监听到，用于唤出
+    table.insert(Lib.Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == ToggleKey then
+            Main.Visible = not Main.Visible
+        end
+    end))
+
     for i, color in ipairs(Colors) do
         local b = Instance.new("TextButton", TopBar)
         b.Size = UDim2.fromOffset(10, 10)
@@ -321,13 +332,19 @@ function zhiUI:CreateWindow(config)
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
 
         if i == 1 then
-            -- 红点：关闭
+            -- 红点：删除(销毁整个窗口，不可恢复)
             table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
                 Lib:Destroy()
             end))
-            BindTooltip(b, "关闭", ScreenGui)
+            BindTooltip(b, "删除", ScreenGui)
         elseif i == 2 then
-            -- 黄点：最小化/还原
+            -- 黄点：隐藏(不销毁，按快捷键或再次点击唤出)
+            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
+                Main.Visible = false
+            end))
+            BindTooltip(b, "隐藏 (按 " .. ToggleKey.Name .. " 唤出)", ScreenGui)
+        else
+            -- 绿点：最小化(收起成只剩标题栏，再点还原)
             table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
                 minimized = not minimized
                 if minimized then
@@ -338,8 +355,6 @@ function zhiUI:CreateWindow(config)
                 end
             end))
             BindTooltip(b, "最小化", ScreenGui)
-        else
-            BindTooltip(b, "", ScreenGui)
         end
     end
 
