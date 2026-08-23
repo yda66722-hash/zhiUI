@@ -1,5 +1,5 @@
 -- ========================================================
--- zhiUI 2.0 (终极全修复版：修正坐标偏移、下拉框遮挡与动态布局)
+-- zhiUI 2.0 (全修复与视觉增强版)
 -- ========================================================
 
 local zhiUI = {}
@@ -97,14 +97,13 @@ function zhiUI:Notify(title, desc, duration)
 end
 
 function zhiUI:CreateWindow(config)
-    local Lib = { CurrentTab = nil, Tabs = {} }
+    local Lib = { CurrentTab = nil, Tabs = {}, TabButtons = {} }
     local TitleText = (type(config) == "table" and config.Title) or (type(config) == "string" and config) or "zhiUI 控制面板"
 
     local ScreenGui = Instance.new("ScreenGui", Parent)
     ScreenGui.Name = "zhiUI_" .. math.random(1000, 9999)
     ScreenGui.ResetOnSpawn = false
 
-    -- 动态适配屏幕尺寸
     local UIScale = Instance.new("UIScale", ScreenGui)
     local function ScaleAdjust()
         local vp = workspace.CurrentCamera.ViewportSize
@@ -155,7 +154,7 @@ function zhiUI:CreateWindow(config)
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
     end
 
-    -- 侧边栏
+    -- 侧边栏（新增排版及内外边距优化）
     local Sidebar = Instance.new("Frame", Main)
     Sidebar.Size = UDim2.new(0, 120, 1, -36)
     Sidebar.Position = UDim2.fromOffset(0, 36)
@@ -163,8 +162,12 @@ function zhiUI:CreateWindow(config)
     Sidebar.BackgroundTransparency = 0.2
     
     local SideLayout = Instance.new("UIListLayout", Sidebar)
-    SideLayout.Padding = UDim.new(0, 4)
+    SideLayout.Padding = UDim.new(0, 6)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local SidePadding = Instance.new("UIPadding", Sidebar)
+    SidePadding.PaddingTop = UDim.new(0, 8)
 
     -- 内容主容器
     local Container = Instance.new("Frame", Main)
@@ -176,13 +179,19 @@ function zhiUI:CreateWindow(config)
         local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
         local Elements = {}
 
+        -- 修正侧边栏按钮样式与事件
         local TabBtn = Instance.new("TextButton", Sidebar)
         TabBtn.Size = UDim2.new(0.88, 0, 0, 32)
+        TabBtn.BackgroundColor3 = Theme.Card
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = name
         TabBtn.TextColor3 = Theme.TextSecondary
         TabBtn.Font = Enum.Font.GothamBold
         TabBtn.TextSize = 12
+        TabBtn.AutoButtonColor = false
+        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
+
+        table.insert(Lib.TabButtons, TabBtn)
 
         -- 页面容器
         local Page = Instance.new("ScrollingFrame", Container)
@@ -202,22 +211,25 @@ function zhiUI:CreateWindow(config)
             for _, v in pairs(Container:GetChildren()) do 
                 if v:IsA("ScrollingFrame") then v.Visible = false end 
             end
-            for _, v in pairs(Sidebar:GetChildren()) do 
-                if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end 
+            for _, btn in pairs(Lib.TabButtons) do 
+                btn.TextColor3 = Theme.TextSecondary
+                btn.BackgroundTransparency = 1
             end
             Page.Visible = true
             TabBtn.TextColor3 = Theme.Text
+            TabBtn.BackgroundTransparency = 0.5
         end)
 
         if not Lib.CurrentTab then 
             Lib.CurrentTab = Page
             Page.Visible = true
             TabBtn.TextColor3 = Theme.Text 
+            TabBtn.BackgroundTransparency = 0.5
         end
 
         -- 添加 Button
         function Elements:AddButton(cfg)
-            local text = type(cfg) == "table" and cfg.Text or tostring(cfg)
+            local text = type(cfg) == "table" and (cfg.Text or cfg.Name) or tostring(cfg)
             local callback = type(cfg) == "table" and cfg.Callback or function() end
 
             local Btn = Instance.new("TextButton", Page)
@@ -228,6 +240,7 @@ function zhiUI:CreateWindow(config)
             Btn.TextColor3 = Theme.Text
             Btn.Font = Enum.Font.GothamBold
             Btn.TextSize = 12
+            Btn.AutoButtonColor = true
             Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
             
             local stroke = Instance.new("UIStroke", Btn)
@@ -240,8 +253,8 @@ function zhiUI:CreateWindow(config)
 
         -- 添加 Toggle
         function Elements:AddToggle(cfg)
-            local text = type(cfg) == "table" and cfg.Text or tostring(cfg)
-            local state = type(cfg) == "table" and cfg.Default or false
+            local text = type(cfg) == "table" and (cfg.Text or cfg.Name) or tostring(cfg)
+            local state = type(cfg) == "table" and (cfg.Default or cfg.State) or false
             local callback = type(cfg) == "table" and cfg.Callback or function() end
 
             local TFrame = Instance.new("Frame", Page)
@@ -282,9 +295,9 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 添加 Slider (修正触摸与鼠标屏幕偏移)
+        -- 添加 Slider
         function Elements:AddSlider(cfg)
-            local text = cfg.Text or "Slider"
+            local text = cfg.Text or cfg.Name or "Slider"
             local min = cfg.Min or 0
             local max = cfg.Max or 100
             local default = math.clamp(cfg.Default or min, min, max)
@@ -330,7 +343,6 @@ function zhiUI:CreateWindow(config)
             local dragging = false
             local function Update(input)
                 local mousePos = input and input.Position.X or UserInputService:GetMouseLocation().X
-                local inset = GuiService:GetGuiInset().Y
                 local p = math.clamp((mousePos - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
                 Fill.Size = UDim2.fromScale(p, 1)
                 local val = math.floor(min + (max - min) * p)
@@ -357,9 +369,9 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 添加 Dropdown (修复展开推挤与裁切问题)
+        -- 添加 Dropdown
         function Elements:AddDropdown(cfg)
-            local list = cfg.List or {}
+            local list = cfg.Options or cfg.List or {}
             local callback = cfg.Callback or function() end
 
             local DFrame = Instance.new("Frame", Page)
@@ -372,7 +384,7 @@ function zhiUI:CreateWindow(config)
             local Btn = Instance.new("TextButton", DFrame)
             Btn.Size = UDim2.new(1, 0, 0, 34)
             Btn.BackgroundTransparency = 1
-            Btn.Text = "  " .. (cfg.Text or "Dropdown") .. " : ..."
+            Btn.Text = "  " .. (cfg.Text or cfg.Name or "Dropdown") .. " : ..."
             Btn.TextColor3 = Theme.Text
             Btn.Font = Enum.Font.GothamMedium
             Btn.TextSize = 11
@@ -396,7 +408,7 @@ function zhiUI:CreateWindow(config)
                 opt.TextSize = 11
                 opt.TextXAlignment = Enum.TextXAlignment.Left
                 opt.MouseButton1Click:Connect(function()
-                    Btn.Text = "  " .. (cfg.Text or "Dropdown") .. " : " .. tostring(v)
+                    Btn.Text = "  " .. (cfg.Text or cfg.Name or "Dropdown") .. " : " .. tostring(v)
                     dropped = false
                     TweenService:Create(DFrame, TweenInfo.new(0.2), {Size = UDim2.new(0.96, 0, 0, 34)}):Play()
                     callback(v)
@@ -418,7 +430,7 @@ function zhiUI:CreateWindow(config)
             L.Size = UDim2.new(0.4, 0, 1, 0)
             L.Position = UDim2.fromOffset(10, 0)
             L.BackgroundTransparency = 1
-            L.Text = cfg.Text or "Input"
+            L.Text = cfg.Text or cfg.Name or "Input"
             L.TextColor3 = Theme.Text
             L.Font = Enum.Font.GothamMedium
             L.TextSize = 11
@@ -440,7 +452,7 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 批量添加 Add
+        -- 批量添加组件
         function Elements:Add(tbl)
             if type(tbl) == "table" then
                 for _, item in ipairs(tbl) do
