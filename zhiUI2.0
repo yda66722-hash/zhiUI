@@ -1,501 +1,454 @@
-local zhiUI = {}
-zhiUI.__index = zhiUI
+--[[by
+█████████
+           ██ 
+         ██   
+       ██     
+     ██       
+   ██         
+ ██           
+█████████   
 
+██          ██
+██          ██
+██          ██
+██████████
+██          ██
+██          ██
+██          ██
+██          ██
+
+███████████
+       ██      
+       ██      
+       ██      
+       ██      
+       ██      
+       ██      
+███████████
+
+]]
+-- bt zhi fei ji yut
+-- zhiUI 3.0 Ultra Version - Fusion & Upgrade
+
+local zhiUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
--- 主题调色盘 (Wind / Glassmorphism 风格)
+local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- 清理同名 UI 实例
+for _, v in pairs(Parent:GetChildren()) do
+    if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
+end
+
+-- 全局主题配置
 local Theme = {
-    Background = Color3.fromRGB(15, 23, 42),
-    Sidebar = Color3.fromRGB(11, 15, 26),
-    Card = Color3.fromRGB(24, 32, 53),
+    Main = Color3.fromRGB(20, 24, 38),
+    Sidebar = Color3.fromRGB(13, 16, 27),
+    Card = Color3.fromRGB(30, 37, 56),
     Accent = Color3.fromRGB(99, 102, 241),
-    TextMain = Color3.fromRGB(248, 250, 252),
-    TextSub = Color3.fromRGB(148, 163, 184),
+    Text = Color3.fromRGB(255, 255, 255),
+    TextSecondary = Color3.fromRGB(148, 163, 184),
     Border = Color3.fromRGB(255, 255, 255),
-    BorderTrans = 0.92
+    BorderTrans = 0.92,
+    Trans = 0.15
 }
 
--- 初始化主窗口
-function zhiUI:CreateWindow(titleText)
-    local window = setmetatable({}, zhiUI)
-
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "zhiUI_Window"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = (gethui and gethui()) or CoreGui
-
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 580, 0, 400)
-    mainFrame.Position = UDim2.new(0.5, -290, 0.5, -200)
-    mainFrame.BackgroundColor3 = Theme.Background
-    mainFrame.BackgroundTransparency = 0.15
-    mainFrame.BorderSizePixel = 0
-    mainFrame.ClipsDescendants = true
-    mainFrame.Parent = screenGui
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = mainFrame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Theme.Border
-    stroke.Transparency = Theme.BorderTrans
-    stroke.Thickness = 1
-    stroke.Parent = mainFrame
-
-    -- 拖拽逻辑
-    local dragging, dragInput, dragStart, startPos
-    mainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = mainFrame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
+-- Jelly 弹性动效函数
+local function JellyHover(obj)
+    obj.MouseEnter:Connect(function()
+        TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0.9, 0, 0, 42)}):Play()
     end)
-    mainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    obj.MouseLeave:Connect(function()
+        TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.new(0.85, 0, 0, 38)}):Play()
+    end)
+end
+
+local function JellyClick(obj)
+    obj.MouseButton1Down:Connect(function()
+        TweenService:Create(obj, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {Size = UDim2.new(0.92, 0, 0, 42)}):Play()
+    end)
+    obj.MouseButton1Up:Connect(function()
+        TweenService:Create(obj, TweenInfo.new(0.35, Enum.EasingStyle.Elastic), {Size = UDim2.new(0.95, 0, 0, 46)}):Play()
+    end)
+end
+
+local function MakeDraggable(dragPart, mainPart)
+    local dragging, dragStart, startPos
+    dragPart.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true dragStart = input.Position startPos = mainPart.Position
+        end
     end)
     UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            mainPart.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-
-    -- 侧边栏
-    local sidebar = Instance.new("Frame")
-    sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 150, 1, 0)
-    sidebar.BackgroundColor3 = Theme.Sidebar
-    sidebar.BackgroundTransparency = 0.2
-    sidebar.BorderSizePixel = 0
-    sidebar.Parent = mainFrame
-
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -20, 0, 40)
-    titleLabel.Position = UDim2.new(0, 10, 0, 10)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = titleText or "zhiUI"
-    titleLabel.TextColor3 = Theme.TextMain
-    titleLabel.TextSize = 16
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.Parent = sidebar
-
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, -16, 1, -60)
-    tabContainer.Position = UDim2.new(0, 8, 0, 50)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = sidebar
-
-    local tabList = Instance.new("UIListLayout")
-    tabList.Padding = UDim.new(0, 6)
-    tabList.SortOrder = Enum.SortOrder.LayoutOrder
-    tabList.Parent = tabContainer
-
-    -- 内容区域
-    local contentArea = Instance.new("Frame")
-    contentArea.Name = "ContentArea"
-    contentArea.Size = UDim2.new(1, -150, 1, 0)
-    contentArea.Position = UDim2.new(0, 150, 0, 0)
-    contentArea.BackgroundTransparency = 1
-    contentArea.Parent = mainFrame
-
-    window.MainFrame = mainFrame
-    window.TabContainer = tabContainer
-    window.ContentArea = contentArea
-    window.Tabs = {}
-
-    return window
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
 end
 
--- 创建页面 (AddPage / AddTab / CreatePage)
-local function createTabInternal(window, tabConfig)
-    local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
-    local tab = {}
+-- 全局 Notification 通知系统
+function zhiUI:Notify(title, desc, duration)
+    local NotifyGui = Parent:FindFirstChild("zhiUI_Notify")
+    if not NotifyGui then
+        NotifyGui = Instance.new("ScreenGui", Parent)
+        NotifyGui.Name = "zhiUI_Notify"
+        local Layout = Instance.new("UIListLayout", NotifyGui)
+        Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        Layout.Padding = UDim.new(0, 10)
+    end
 
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Size = UDim2.new(1, 0, 0, 32)
-    tabBtn.BackgroundColor3 = Theme.Accent
-    tabBtn.BackgroundTransparency = 1
-    tabBtn.Text = "  " .. name
-    tabBtn.TextColor3 = Theme.TextSub
-    tabBtn.TextSize = 13
-    tabBtn.Font = Enum.Font.GothamMedium
-    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    tabBtn.AutoButtonColor = false
-    tabBtn.Parent = window.TabContainer
+    local Notif = Instance.new("Frame", NotifyGui)
+    Notif.Size = UDim2.fromOffset(260, 0)
+    Notif.BackgroundColor3 = Theme.Main
+    Notif.BackgroundTransparency = 0.1
+    Notif.ClipsDescendants = true
+    Instance.new("UICorner", Notif).CornerRadius = UDim.new(0, 10)
+    local Stroke = Instance.new("UIStroke", Notif)
+    Stroke.Color = Theme.Border; Stroke.Transparency = Theme.BorderTrans
 
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 8)
-    btnCorner.Parent = tabBtn
+    local T = Instance.new("TextLabel", Notif)
+    T.Size = UDim2.new(1, -20, 0, 25); T.Position = UDim2.fromOffset(12, 6)
+    T.Text = title or "zhiUI Notification"; T.TextColor3 = Theme.Accent; T.Font = Enum.Font.GothamBold; T.TextSize = 14; T.BackgroundTransparency = 1; T.TextXAlignment = Enum.TextXAlignment.Left
 
-    local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(1, -20, 1, -20)
-    page.Position = UDim2.new(0, 10, 0, 10)
-    page.BackgroundTransparency = 1
-    page.BorderSizePixel = 0
-    page.ScrollBarThickness = 3
-    page.ScrollBarImageColor3 = Theme.Accent
-    page.Visible = false
-    page.Parent = window.ContentArea
+    local D = Instance.new("TextLabel", Notif)
+    D.Size = UDim2.new(1, -20, 0, 30); D.Position = UDim2.fromOffset(12, 28)
+    D.Text = desc or ""; D.TextColor3 = Theme.Text; D.Font = Enum.Font.Gotham; D.TextSize = 12; D.BackgroundTransparency = 1; D.TextXAlignment = Enum.TextXAlignment.Left; D.TextWrapped = true
 
-    local pageList = Instance.new("UIListLayout")
-    pageList.Padding = UDim.new(0, 8)
-    pageList.SortOrder = Enum.SortOrder.LayoutOrder
-    pageList.Parent = page
+    TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(260, 65)}):Play()
+    task.delay(duration or 3, function()
+        TweenService:Create(Notif, TweenInfo.new(0.4), {Size = UDim2.fromOffset(0, 65), BackgroundTransparency = 1}):Play()
+        task.wait(0.4); Notif:Destroy()
+    end)
+end
 
-    tab.Page = page
-    tab.Btn = tabBtn
+-- 创建主窗口
+function zhiUI:CreateWindow(config)
+    local Lib = { CurrentTab = nil, Tabs = {} }
+    local TitleText = (type(config) == "table" and config.Title) or (type(config) == "string" and config) or "zhiUI Ultra"
 
-    local function selectTab()
-        for _, t in pairs(window.Tabs) do
-            t.Page.Visible = false
-            TweenService:Create(t.Btn, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Theme.TextSub}):Play()
+    local ScreenGui = Instance.new("ScreenGui", Parent)
+    ScreenGui.Name = "zhiUI_" .. math.random(1000, 9999)
+    ScreenGui.ResetOnSpawn = false
+
+    local UIScale = Instance.new("UIScale", ScreenGui)
+    local function UpdateScale() UIScale.Scale = (workspace.CurrentCamera.ViewportSize.X < 800) and 0.75 or 1 end
+    UpdateScale()
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+
+    -- Mini 悬浮打开按钮
+    local Mini = Instance.new("Frame", ScreenGui)
+    Mini.Size = UDim2.fromOffset(180, 42); Mini.Position = UDim2.new(0.5, -90, 0, 50)
+    Mini.BackgroundColor3 = Theme.Main; Mini.BackgroundTransparency = 0.1; Mini.Visible = false; Mini.ClipsDescendants = true
+    Instance.new("UICorner", Mini).CornerRadius = UDim.new(1, 0)
+    local MiniStroke = Instance.new("UIStroke", Mini)
+    MiniStroke.Color = Theme.Accent; MiniStroke.Thickness = 1.5
+
+    local ClickOpen = Instance.new("TextButton", Mini)
+    ClickOpen.Size = UDim2.new(1, 0, 1, 0); ClickOpen.BackgroundTransparency = 1; ClickOpen.Text = "展开 " .. TitleText
+    ClickOpen.TextColor3 = Theme.Text; ClickOpen.Font = Enum.Font.GothamBold; ClickOpen.TextSize = 13
+    MakeDraggable(Mini, Mini)
+
+    -- 主框架
+    local Main = Instance.new("Frame", ScreenGui)
+    local MainSize = UDim2.fromOffset(580, 390)
+    Main.Size = MainSize; Main.Position = UDim2.fromScale(0.5, 0.5); Main.AnchorPoint = Vector2.new(0.5, 0.5)
+    Main.BackgroundColor3 = Theme.Main; Main.BackgroundTransparency = Theme.Trans; Main.ClipsDescendants = true
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
+    local MainStroke = Instance.new("UIStroke", Main)
+    MainStroke.Color = Theme.Border; MainStroke.Transparency = Theme.BorderTrans
+    MakeDraggable(Main, Main)
+
+    local function ToggleUI(show)
+        if show then
+            Main.Visible = true; Main.Size = UDim2.fromOffset(0, 0)
+            TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Elastic), {Size = MainSize}):Play()
+            Mini.Visible = false
+        else
+            TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(0, 0)}):Play()
+            task.wait(0.3); Main.Visible = false; Mini.Visible = true
         end
-        page.Visible = true
-        TweenService:Create(tabBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0, TextColor3 = Theme.TextMain}):Play()
     end
 
-    tabBtn.MouseButton1Click:Connect(selectTab)
-    if #window.Tabs == 0 then selectTab() end
-    table.insert(window.Tabs, tab)
+    -- TopBar 顶部控制栏
+    local TopBar = Instance.new("Frame", Main)
+    TopBar.Size = UDim2.new(1, 0, 0, 45); TopBar.BackgroundTransparency = 1
 
-    -- 通用参数解析辅助函数
-    local function parseArgs(...)
-        local args = {...}
-        if type(args[1]) == "table" then
-            return args[1]
-        end
-        return nil, args
+    local TitleLabel = Instance.new("TextLabel", TopBar)
+    TitleLabel.Size = UDim2.new(0.5, 0, 1, 0); TitleLabel.Position = UDim2.fromOffset(90, 0)
+    TitleLabel.BackgroundTransparency = 1; TitleLabel.Text = TitleText
+    TitleLabel.TextColor3 = Theme.Text; TitleLabel.Font = Enum.Font.GothamBold; TitleLabel.TextSize = 15; TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local Colors = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
+    for i, color in ipairs(Colors) do
+        local b = Instance.new("TextButton", TopBar)
+        b.Size = UDim2.fromOffset(12, 12); b.Position = UDim2.fromOffset(18 + (i-1)*20, 16)
+        b.BackgroundColor3 = color; b.Text = ""
+        Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+        if i == 1 then b.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+        elseif i == 2 then b.MouseButton1Click:Connect(function() ToggleUI(false) end) end
     end
+    ClickOpen.MouseButton1Click:Connect(function() ToggleUI(true) end)
 
-    -- ==================== 1. 按钮 (Button) ====================
-    local function addBtnLogic(cfg)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 38)
-        btn.BackgroundColor3 = Theme.Card
-        btn.Text = cfg.Text or "Button"
-        btn.TextColor3 = Theme.TextMain
-        btn.TextSize = 13
-        btn.Font = Enum.Font.GothamSemibold
-        btn.AutoButtonColor = false
-        btn.Parent = page
+    -- Sidebar 侧边栏
+    local Sidebar = Instance.new("Frame", Main)
+    Sidebar.Size = UDim2.new(0, 150, 1, -45); Sidebar.Position = UDim2.fromOffset(0, 45)
+    Sidebar.BackgroundColor3 = Theme.Sidebar; Sidebar.BackgroundTransparency = 0.2
+    local SideLayout = Instance.new("UIListLayout", Sidebar); SideLayout.Padding = UDim.new(0, 6); SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = btn
+    -- Container 内容区
+    local Container = Instance.new("Frame", Main)
+    Container.Size = UDim2.new(1, -165, 1, -55); Container.Position = UDim2.fromOffset(155, 50); Container.BackgroundTransparency = 1
 
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = Theme.Border
-        stroke.Transparency = Theme.BorderTrans
-        stroke.Parent = btn
+    -- 创建 Tab 页面逻辑
+    local function createTabInternal(selfObj, tabConfig)
+        local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
+        local Elements = {}
 
-        local callback = cfg.Callback or function() end
-        btn.MouseButton1Click:Connect(function()
-            TweenService:Create(btn, TweenInfo.new(0.08), {Size = UDim2.new(1, -4, 0, 36)}):Play()
-            task.wait(0.08)
-            TweenService:Create(btn, TweenInfo.new(0.08), {Size = UDim2.new(1, 0, 0, 38)}):Play()
-            callback()
+        local TabBtn = Instance.new("TextButton", Sidebar)
+        TabBtn.Size = UDim2.new(0.85, 0, 0, 38); TabBtn.BackgroundTransparency = 1; TabBtn.Text = name
+        TabBtn.TextColor3 = Theme.TextSecondary; TabBtn.Font = Enum.Font.GothamBold; TabBtn.TextSize = 14
+        JellyHover(TabBtn)
+
+        local Page = Instance.new("ScrollingFrame", Container)
+        Page.Size = UDim2.new(1, 0, 1, 0); Page.BackgroundTransparency = 1; Page.Visible = false; Page.ScrollBarThickness = 3; Page.ScrollBarImageColor3 = Theme.Accent
+        local PageLayout = Instance.new("UIListLayout", Page); PageLayout.Padding = UDim.new(0, 8)
+        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            Page.CanvasSize = UDim2.fromOffset(0, PageLayout.AbsoluteContentSize.Y + 10)
         end)
-        return tab
-    end
 
-    function tab:AddButton(...)
-        local cfg, raw = parseArgs(...)
-        if cfg then return addBtnLogic(cfg) end
-        return addBtnLogic({Text = raw[1], Callback = raw[2]})
-    end
-    tab.CreateButton = tab.AddButton
-    tab.Button = tab.AddButton
-
-    -- ==================== 2. 开关 (Toggle) ====================
-    local function addToggleLogic(cfg)
-        local toggled = cfg.Default or false
-        local callback = cfg.Callback or function() end
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 42)
-        frame.BackgroundColor3 = Theme.Card
-        frame.Parent = page
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = frame
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -60, 1, 0)
-        label.Position = UDim2.new(0, 12, 0, 0)
-        label.BackgroundTransparency = 1
-        label.Text = cfg.Text or "Toggle"
-        label.TextColor3 = Theme.TextMain
-        label.TextSize = 13
-        label.Font = Enum.Font.GothamMedium
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = frame
-
-        local switch = Instance.new("Frame")
-        switch.Size = UDim2.new(0, 36, 0, 20)
-        switch.Position = UDim2.new(1, -48, 0.5, -10)
-        switch.BackgroundColor3 = toggled and Theme.Accent or Color3.fromRGB(45, 55, 72)
-        switch.Parent = frame
-
-        local switchCorner = Instance.new("UICorner")
-        switchCorner.CornerRadius = UDim.new(1, 0)
-        switchCorner.Parent = switch
-
-        local dot = Instance.new("Frame")
-        dot.Size = UDim2.new(0, 14, 0, 14)
-        dot.Position = toggled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
-        dot.BackgroundColor3 = Theme.TextMain
-        dot.Parent = switch
-
-        local dotCorner = Instance.new("UICorner")
-        dotCorner.CornerRadius = UDim.new(1, 0)
-        dotCorner.Parent = dot
-
-        local clickBtn = Instance.new("TextButton")
-        clickBtn.Size = UDim2.new(1, 0, 1, 0)
-        clickBtn.BackgroundTransparency = 1
-        clickBtn.Text = ""
-        clickBtn.Parent = frame
-
-        clickBtn.MouseButton1Click:Connect(function()
-            toggled = not toggled
-            local targetPos = toggled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
-            local targetColor = toggled and Theme.Accent or Color3.fromRGB(45, 55, 72)
-
-            TweenService:Create(dot, TweenInfo.new(0.2), {Position = targetPos}):Play()
-            TweenService:Create(switch, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
-            callback(toggled)
+        TabBtn.MouseButton1Click:Connect(function()
+            for _, v in pairs(Container:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
+            for _, v in pairs(Sidebar:GetChildren()) do if v:IsA("TextButton") then v.TextColor3 = Theme.TextSecondary end end
+            Page.Visible = true; TabBtn.TextColor3 = Theme.Text
         end)
-        return tab
-    end
 
-    function tab:AddToggle(...)
-        local cfg, raw = parseArgs(...)
-        if cfg then return addToggleLogic(cfg) end
-        return addToggleLogic({Text = raw[1], Default = raw[2], Callback = raw[3]})
-    end
-    tab.CreateToggle = tab.AddToggle
-    tab.Toggle = tab.AddToggle
+        if not Lib.CurrentTab then Lib.CurrentTab = Page; Page.Visible = true; TabBtn.TextColor3 = Theme.Text end
 
-    -- ==================== 3. 数值滑动条 (Slider) [新功能] ====================
-    local function addSliderLogic(cfg)
-        local min = cfg.Min or 0
-        local max = cfg.Max or 100
-        local default = math.clamp(cfg.Default or min, min, max)
-        local callback = cfg.Callback or function() end
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 50)
-        frame.BackgroundColor3 = Theme.Card
-        frame.Parent = page
-
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = frame
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.6, 0, 0, 22)
-        label.Position = UDim2.new(0, 12, 0, 6)
-        label.BackgroundTransparency = 1
-        label.Text = cfg.Text or "Slider"
-        label.TextColor3 = Theme.TextMain
-        label.TextSize = 13
-        label.Font = Enum.Font.GothamMedium
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = frame
-
-        local valueLabel = Instance.new("TextLabel")
-        valueLabel.Size = UDim2.new(0.3, 0, 0, 22)
-        valueLabel.Position = UDim2.new(0.7, -12, 0, 6)
-        valueLabel.BackgroundTransparency = 1
-        valueLabel.Text = tostring(default)
-        valueLabel.TextColor3 = Theme.TextSub
-        valueLabel.TextSize = 12
-        valueLabel.Font = Enum.Font.GothamBold
-        valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-        valueLabel.Parent = frame
-
-        local barBg = Instance.new("Frame")
-        barBg.Size = UDim2.new(1, -24, 0, 6)
-        barBg.Position = UDim2.new(0, 12, 1, -14)
-        barBg.BackgroundColor3 = Color3.fromRGB(45, 55, 72)
-        barBg.Parent = frame
-
-        local barCorner = Instance.new("UICorner")
-        barCorner.CornerRadius = UDim.new(1, 0)
-        barCorner.Parent = barBg
-
-        local fillPercent = (default - min) / (max - min)
-        local barFill = Instance.new("Frame")
-        barFill.Size = UDim2.new(fillPercent, 0, 1, 0)
-        barFill.BackgroundColor3 = Theme.Accent
-        barFill.Parent = barBg
-
-        local fillCorner = Instance.new("UICorner")
-        fillCorner.CornerRadius = UDim.new(1, 0)
-        fillCorner.Parent = barFill
-
-        local isDragging = false
-        local function updateSlider(input)
-            local mousePos = input.Position.X
-            local barPos = barBg.AbsolutePosition.X
-            local barWidth = barBg.AbsoluteSize.X
-            local pct = math.clamp((mousePos - barPos) / barWidth, 0, 1)
-
-            local val = math.floor(min + (max - min) * pct)
-            barFill.Size = UDim2.new(pct, 0, 1, 0)
-            valueLabel.Text = tostring(val)
-            callback(val)
+        -- 通用参数解析辅助
+        local function parseArgs(...)
+            local args = {...}
+            if type(args[1]) == "table" then return args[1] end
+            return nil, args
         end
 
-        barBg.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                isDragging = true
-                updateSlider(input)
+        -- 1. Button (按钮)
+        local function addBtnLogic(cfg)
+            local b = Instance.new("TextButton", Page)
+            b.Size = UDim2.new(0.95, 0, 0, 46); b.BackgroundColor3 = Theme.Card; b.BackgroundTransparency = 0.3
+            b.Text = cfg.Text or "Button"; b.TextColor3 = Theme.Text; b.Font = Enum.Font.GothamBold; b.TextSize = 14
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+            local stroke = Instance.new("UIStroke", b); stroke.Color = Theme.Border; stroke.Transparency = Theme.BorderTrans
+            JellyClick(b)
+            b.MouseButton1Click:Connect(cfg.Callback or function() end)
+            return Elements
+        end
+
+        function Elements:AddButton(...)
+            local cfg, raw = parseArgs(...)
+            if cfg then return addBtnLogic(cfg) end
+            return addBtnLogic({Text = raw[1], Callback = raw[2]})
+        end
+        Elements.CreateButton = Elements.AddButton; Elements.Button = Elements.AddButton
+
+        -- 2. Toggle (开关)
+        local function addToggleLogic(cfg)
+            local state = cfg.Default or false
+            local callback = cfg.Callback or function() end
+
+            local TFrame = Instance.new("Frame", Page)
+            TFrame.Size = UDim2.new(0.95, 0, 0, 46); TFrame.BackgroundColor3 = Theme.Card; TFrame.BackgroundTransparency = 0.3
+            Instance.new("UICorner", TFrame).CornerRadius = UDim.new(0, 8)
+
+            local L = Instance.new("TextLabel", TFrame)
+            L.Size = UDim2.new(0.7, 0, 1, 0); L.Position = UDim2.fromOffset(12, 0); L.BackgroundTransparency = 1
+            L.Text = cfg.Text or "Toggle"; L.TextColor3 = Theme.Text; L.Font = Enum.Font.GothamMedium; L.TextSize = 13; L.TextXAlignment = Enum.TextXAlignment.Left
+
+            local S = Instance.new("TextButton", TFrame)
+            S.Size = UDim2.fromOffset(40, 22); S.Position = UDim2.new(1, -52, 0.5, -11)
+            S.BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(50, 60, 80); S.Text = ""
+            Instance.new("UICorner", S).CornerRadius = UDim.new(1, 0)
+
+            local D = Instance.new("Frame", S)
+            D.Size = UDim2.fromOffset(16, 16); D.Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            D.BackgroundColor3 = Theme.Text; Instance.new("UICorner", D).CornerRadius = UDim.new(1, 0)
+
+            S.MouseButton1Click:Connect(function()
+                state = not state
+                TweenService:Create(D, TweenInfo.new(0.25, Enum.EasingStyle.Elastic), {Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
+                TweenService:Create(S, TweenInfo.new(0.25), {BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(50, 60, 80)}):Play()
+                callback(state)
+            end)
+            return Elements
+        end
+
+        function Elements:AddToggle(...)
+            local cfg, raw = parseArgs(...)
+            if cfg then return addToggleLogic(cfg) end
+            return addToggleLogic({Text = raw[1], Default = raw[2], Callback = raw[3]})
+        end
+        Elements.CreateToggle = Elements.AddToggle; Elements.Toggle = Elements.AddToggle
+
+        -- 3. Slider (滑动条)
+        local function addSliderLogic(cfg)
+            local min = cfg.Min or 0
+            local max = cfg.Max or 100
+            local default = math.clamp(cfg.Default or min, min, max)
+            local callback = cfg.Callback or function() end
+
+            local SFrame = Instance.new("Frame", Page)
+            SFrame.Size = UDim2.new(0.95, 0, 0, 56); SFrame.BackgroundColor3 = Theme.Card; SFrame.BackgroundTransparency = 0.3
+            Instance.new("UICorner", SFrame).CornerRadius = UDim.new(0, 8)
+
+            local L = Instance.new("TextLabel", SFrame)
+            L.Size = UDim2.new(0.6, 0, 0, 24); L.Position = UDim2.fromOffset(12, 4); L.BackgroundTransparency = 1
+            L.Text = cfg.Text or "Slider"; L.TextColor3 = Theme.Text; L.Font = Enum.Font.GothamMedium; L.TextSize = 13; L.TextXAlignment = Enum.TextXAlignment.Left
+
+            local ValL = Instance.new("TextLabel", SFrame)
+            ValL.Size = UDim2.new(0.3, 0, 0, 24); ValL.Position = UDim2.new(0.7, -12, 0, 4); ValL.BackgroundTransparency = 1
+            ValL.Text = tostring(default); ValL.TextColor3 = Theme.TextSecondary; ValL.Font = Enum.Font.GothamBold; ValL.TextSize = 12; ValL.TextXAlignment = Enum.TextXAlignment.Right
+
+            local Bar = Instance.new("Frame", SFrame)
+            Bar.Size = UDim2.new(0.92, 0, 0, 5); Bar.Position = UDim2.new(0.04, 0, 0, 38); Bar.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
+            Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
+
+            local Fill = Instance.new("Frame", Bar)
+            Fill.Size = UDim2.fromScale((default-min)/(max-min), 1); Fill.BackgroundColor3 = Theme.Accent
+            Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
+
+            local dragging = false
+            local function Update()
+                local p = math.clamp((UserInputService:GetMouseLocation().X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                Fill.Size = UDim2.fromScale(p, 1)
+                local val = math.floor(min + (max-min)*p)
+                ValL.Text = tostring(val)
+                callback(val)
             end
-        end)
+            SFrame.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true Update() end end)
+            UserInputService.InputChanged:Connect(function(i) if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then Update() end end)
+            UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+            return Elements
+        end
 
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                isDragging = false
+        function Elements:AddSlider(...)
+            local cfg, raw = parseArgs(...)
+            if cfg then return addSliderLogic(cfg) end
+            return addSliderLogic({Text = raw[1], Min = raw[2], Max = raw[3], Default = raw[4], Callback = raw[5]})
+        end
+        Elements.CreateSlider = Elements.AddSlider; Elements.Slider = Elements.AddSlider
+
+        -- 4. Dropdown (下拉框)
+        local function addDropdownLogic(cfg)
+            local list = cfg.List or cfg.Options or {}
+            local callback = cfg.Callback or function() end
+
+            local DFrame = Instance.new("Frame", Page)
+            DFrame.Size = UDim2.new(0.95, 0, 0, 46); DFrame.BackgroundColor3 = Theme.Card; DFrame.BackgroundTransparency = 0.3; DFrame.ClipsDescendants = true
+            Instance.new("UICorner", DFrame).CornerRadius = UDim.new(0, 8)
+
+            local Btn = Instance.new("TextButton", DFrame)
+            Btn.Size = UDim2.new(1, 0, 0, 46); Btn.BackgroundTransparency = 1; Btn.Text = "  " .. (cfg.Text or "Dropdown") .. " : ..."; Btn.TextColor3 = Theme.Text; Btn.Font = Enum.Font.GothamMedium; Btn.TextSize = 13; Btn.TextXAlignment = Enum.TextXAlignment.Left
+
+            local dropped = false
+            Btn.MouseButton1Click:Connect(function()
+                dropped = not dropped
+                TweenService:Create(DFrame, TweenInfo.new(0.3), {Size = dropped and UDim2.new(0.95, 0, 0, 46 + #list*32) or UDim2.new(0.95, 0, 0, 46)}):Play()
+            end)
+
+            for idx, v in pairs(list) do
+                local opt = Instance.new("TextButton", DFrame)
+                opt.Size = UDim2.new(1, 0, 0, 30); opt.Position = UDim2.fromOffset(0, 46 + (idx-1)*30)
+                opt.BackgroundTransparency = 1; opt.Text = "    " .. tostring(v); opt.TextColor3 = Theme.TextSecondary; opt.Font = Enum.Font.Gotham; opt.TextXAlignment = Enum.TextXAlignment.Left
+                opt.MouseButton1Click:Connect(function()
+                    Btn.Text = "  " .. (cfg.Text or "Dropdown") .. " : " .. tostring(v); dropped = false
+                    TweenService:Create(DFrame, TweenInfo.new(0.3), {Size = UDim2.new(0.95, 0, 0, 46)}):Play()
+                    callback(v)
+                end)
             end
-        end)
+            return Elements
+        end
 
-        UserInputService.InputChanged:Connect(function(input)
-            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                updateSlider(input)
-            end
-        end)
+        function Elements:AddDropdown(...)
+            local cfg, raw = parseArgs(...)
+            if cfg then return addDropdownLogic(cfg) end
+            return addDropdownLogic({Text = raw[1], List = raw[2], Callback = raw[3]})
+        end
+        Elements.CreateDropdown = Elements.AddDropdown; Elements.Dropdown = Elements.AddDropdown
 
-        return tab
-    end
+        -- 5. TextBox / Input (输入框)
+        local function addInputLogic(cfg)
+            local callback = cfg.Callback or function() end
+            local IFrame = Instance.new("Frame", Page)
+            IFrame.Size = UDim2.new(0.95, 0, 0, 46); IFrame.BackgroundColor3 = Theme.Card; IFrame.BackgroundTransparency = 0.3
+            Instance.new("UICorner", IFrame).CornerRadius = UDim.new(0, 8)
 
-    function tab:AddSlider(...)
-        local cfg, raw = parseArgs(...)
-        if cfg then return addSliderLogic(cfg) end
-        return addSliderLogic({Text = raw[1], Min = raw[2], Max = raw[3], Default = raw[4], Callback = raw[5]})
-    end
-    tab.CreateSlider = tab.AddSlider
-    tab.Slider = tab.AddSlider
+            local L = Instance.new("TextLabel", IFrame)
+            L.Size = UDim2.new(0.4, 0, 1, 0); L.Position = UDim2.fromOffset(12, 0); L.BackgroundTransparency = 1; L.Text = cfg.Text or "Input"; L.TextColor3 = Theme.Text; L.Font = Enum.Font.GothamMedium; L.TextSize = 13; L.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- ==================== 4. 文本输入框 (TextBox) [新功能] ====================
-    local function addTextBoxLogic(cfg)
-        local placeholder = cfg.Placeholder or "请在此输入..."
-        local callback = cfg.Callback or function() end
+            local B = Instance.new("TextBox", IFrame)
+            B.Size = UDim2.new(0.5, 0, 0, 28); B.Position = UDim2.new(1, -12, 0.5, -14); B.AnchorPoint = Vector2.new(1, 0); B.BackgroundColor3 = Theme.Sidebar; B.Text = cfg.Default or ""; B.PlaceholderText = cfg.Placeholder or "..."; B.TextColor3 = Theme.Text; B.Font = Enum.Font.Gotham; B.TextSize = 12; Instance.new("UICorner", B).CornerRadius = UDim.new(0, 6)
+            
+            B.FocusLost:Connect(function(e) callback(B.Text, e) end)
+            return Elements
+        end
 
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 42)
-        frame.BackgroundColor3 = Theme.Card
-        frame.Parent = page
+        function Elements:AddInput(...)
+            local cfg, raw = parseArgs(...)
+            if cfg then return addInputLogic(cfg) end
+            return addInputLogic({Text = raw[1], Placeholder = raw[2], Default = raw[3], Callback = raw[4]})
+        end
+        Elements.AddTextBox = Elements.AddInput; Elements.CreateTextBox = Elements.AddInput; Elements.TextBox = Elements.AddInput; Elements.Input = Elements.AddInput
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = frame
+        -- 6. Label & Divider
+        function Elements:AddLabel(text)
+            local L = Instance.new("TextLabel", Page)
+            L.Size = UDim2.new(0.95, 0, 0, 24); L.BackgroundTransparency = 1; L.Text = text or ""; L.TextColor3 = Theme.TextSecondary; L.Font = Enum.Font.GothamItalic; L.TextSize = 12; L.TextXAlignment = Enum.TextXAlignment.Left
+            local LabelObj = {}
+            function LabelObj:Set(t) L.Text = t end
+            return Elements
+        end
+        Elements.Label = Elements.AddLabel
 
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0.45, 0, 1, 0)
-        label.Position = UDim2.new(0, 12, 0, 0)
-        label.BackgroundTransparency = 1
-        label.Text = cfg.Text or "TextBox"
-        label.TextColor3 = Theme.TextMain
-        label.TextSize = 13
-        label.Font = Enum.Font.GothamMedium
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = frame
+        function Elements:AddDivider()
+            local D = Instance.new("Frame", Page)
+            D.Size = UDim2.new(0.95, 0, 0, 2); D.BackgroundColor3 = Theme.Accent; D.BackgroundTransparency = 0.7
+            return Elements
+        end
+        Elements.Divider = Elements.AddDivider
 
-        local textBox = Instance.new("TextBox")
-        textBox.Size = UDim2.new(0.5, 0, 0, 26)
-        textBox.Position = UDim2.new(0.5, -12, 0.5, -13)
-        textBox.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
-        textBox.Text = cfg.Default or ""
-        textBox.PlaceholderText = placeholder
-        textBox.TextColor3 = Theme.TextMain
-        textBox.PlaceholderColor3 = Theme.TextSub
-        textBox.TextSize = 12
-        textBox.Font = Enum.Font.Gotham
-        textBox.ClearTextOnFocus = false
-        textBox.Parent = frame
-
-        local boxCorner = Instance.new("UICorner")
-        boxCorner.CornerRadius = UDim.new(0, 6)
-        boxCorner.Parent = textBox
-
-        local boxStroke = Instance.new("UIStroke")
-        boxStroke.Color = Theme.Border
-        boxStroke.Transparency = Theme.BorderTrans
-        boxStroke.Parent = textBox
-
-        textBox.Focused:Connect(function()
-            TweenService:Create(boxStroke, TweenInfo.new(0.2), {Color = Theme.Accent, Transparency = 0}):Play()
-        end)
-
-        textBox.FocusLost:Connect(function(enterPressed)
-            TweenService:Create(boxStroke, TweenInfo.new(0.2), {Color = Theme.Border, Transparency = Theme.BorderTrans}):Play()
-            callback(textBox.Text, enterPressed)
-        end)
-
-        return tab
-    end
-
-    function tab:AddTextBox(...)
-        local cfg, raw = parseArgs(...)
-        if cfg then return addTextBoxLogic(cfg) end
-        return addTextBoxLogic({Text = raw[1], Placeholder = raw[2], Default = raw[3], Callback = raw[4]})
-    end
-    tab.CreateTextBox = tab.AddTextBox
-    tab.TextBox = tab.AddTextBox
-
-    -- ==================== 5. 标签 (Label) ====================
-    function tab:AddLabel(text)
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 0, 22)
-        label.BackgroundTransparency = 1
-        label.Text = text or ""
-        label.TextColor3 = Theme.TextSub
-        label.TextSize = 12
-        label.Font = Enum.Font.Gotham
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = page
-        return tab
-    end
-    tab.Label = tab.AddLabel
-
-    -- 批量配置注入
-    function tab:Add(components)
-        if type(components) == "table" then
-            for _, item in ipairs(components) do
-                local cType = item.Type or item[1]
-                if cType == "Button" then
-                    tab:AddButton(item)
-                elseif cType == "Toggle" then
-                    tab:AddToggle(item)
-                elseif cType == "Slider" then
-                    tab:AddSlider(item)
-                elseif cType == "TextBox" then
-                    tab:AddTextBox(item)
-                elseif cType == "Label" then
-                    tab:AddLabel(item.Text or item[2])
+        -- 7. 批量注入 (Add)
+        function Elements:Add(components)
+            if type(components) == "table" then
+                for _, item in ipairs(components) do
+                    local cType = item.Type or item[1]
+                    if cType == "Button" then Elements:AddButton(item)
+                    elseif cType == "Toggle" then Elements:AddToggle(item)
+                    elseif cType == "Slider" then Elements:AddSlider(item)
+                    elseif cType == "Dropdown" then Elements:AddDropdown(item)
+                    elseif cType == "TextBox" or cType == "Input" then Elements:AddInput(item)
+                    elseif cType == "Label" then Elements:AddLabel(item.Text or item[2])
+                    elseif cType == "Divider" then Elements:AddDivider()
+                    end
                 end
             end
+            return Elements
         end
-        return tab
+
+        return Elements
     end
 
-    return tab
-end
+    Lib.AddTab = createTabInternal
+    Lib.AddPage = createTabInternal
+    Lib.CreatePage = createTabInternal
+    Lib.Tab = createTabInternal
 
-zhiUI.AddTab = createTabInternal
-zhiUI.AddPage = createTabInternal
-zhiUI.CreatePage = createTabInternal
-zhiUI.Tab = createTabInternal
+    return Lib
+end
 
 return zhiUI
