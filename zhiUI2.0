@@ -5,7 +5,6 @@ local CoreGui = game:GetService("CoreGui")
 
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 清理旧 UI (保持兼容清理 vsUI 前缀)
 for _, v in pairs(Parent:GetChildren()) do
     if v.Name:sub(1, 5) == "vsUI_" or v.Name:sub(1, 6) == "zhiUI_" then 
         v:Destroy() 
