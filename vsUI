@@ -7,8 +7,8 @@ local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or g
 
 -- 清理旧 UI (保持兼容清理 vsUI 前缀)
 for _, v in pairs(Parent:GetChildren()) do
-    if v.Name:sub(1, 5) == "vsUI_" or v.Name:sub(1, 6) == "zhiUI_" then 
-        v:Destroy() 
+    if v.Name:sub(1, 5) == "vsUI_" or v.Name:sub(1, 6) == "zhiUI_" then
+        v:Destroy()
     end
 end
 
@@ -24,7 +24,10 @@ local ThemePresets = {
         TextSecondary = Color3.fromRGB(168, 153, 194),
         Border = Color3.fromRGB(192, 132, 252),
         BorderTrans = 0.88,
-        Trans = 0.1
+        Trans = 0.1,
+        Success = Color3.fromRGB(40, 201, 64),
+        Warning = Color3.fromRGB(255, 189, 46),
+        Error = Color3.fromRGB(255, 95, 87)
     },
     PurpleLight = { -- 浅紫明亮主题
         Main = Color3.fromRGB(245, 240, 255),
@@ -36,7 +39,10 @@ local ThemePresets = {
         TextSecondary = Color3.fromRGB(109, 90, 140),
         Border = Color3.fromRGB(168, 85, 247),
         BorderTrans = 0.85,
-        Trans = 0.05
+        Trans = 0.05,
+        Success = Color3.fromRGB(22, 163, 74),
+        Warning = Color3.fromRGB(217, 119, 6),
+        Error = Color3.fromRGB(220, 38, 38)
     },
     MidnightPurple = { -- 深夜极暗紫
         Main = Color3.fromRGB(10, 6, 15),
@@ -48,7 +54,10 @@ local ThemePresets = {
         TextSecondary = Color3.fromRGB(130, 115, 155),
         Border = Color3.fromRGB(192, 132, 252),
         BorderTrans = 0.9,
-        Trans = 0.05
+        Trans = 0.05,
+        Success = Color3.fromRGB(52, 211, 100),
+        Warning = Color3.fromRGB(250, 204, 82),
+        Error = Color3.fromRGB(248, 113, 113)
     }
 }
 
@@ -72,8 +81,8 @@ local function SafeReadFile(name)
     return nil
 end
 
--- 改进的拖拽响应函数
-local function MakeDraggable(dragPart, mainPart)
+-- 改进的拖拽响应函数 (带屏幕边界保护)
+local function MakeDraggable(dragPart, mainPart, clampToScreen)
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -91,7 +100,19 @@ local function MakeDraggable(dragPart, mainPart)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             if dragStart and startPos then
                 local delta = input.Position - dragStart
-                mainPart.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                local newX = startPos.X.Offset + delta.X
+                local newY = startPos.Y.Offset + delta.Y
+
+                if clampToScreen then
+                    local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+                    if vp then
+                        local size = mainPart.AbsoluteSize
+                        newX = math.clamp(newX, -size.X * mainPart.AnchorPoint.X, vp.X - size.X * (1 - mainPart.AnchorPoint.X))
+                        newY = math.clamp(newY, -size.Y * mainPart.AnchorPoint.Y, vp.Y - size.Y * (1 - mainPart.AnchorPoint.Y))
+                    end
+                end
+
+                mainPart.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
             end
         end
     end)
@@ -111,8 +132,8 @@ local function MakeDraggable(dragPart, mainPart)
     end
 end
 
--- 通知系统
-function vsUI:Notify(title, desc, duration)
+-- 通知系统 (支持类型着色: info / success / warning / error)
+function vsUI:Notify(title, desc, duration, notifyType)
     local NotifyGui = Parent:FindFirstChild("vsUI_Notify")
     if not NotifyGui then
         NotifyGui = Instance.new("ScreenGui", Parent)
@@ -122,36 +143,47 @@ function vsUI:Notify(title, desc, duration)
         Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
         Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
         Layout.Padding = UDim.new(0, 10)
-        
+
         local Pad = Instance.new("UIPadding", NotifyGui)
         Pad.PaddingBottom = UDim.new(0, 20)
         Pad.PaddingRight = UDim.new(0, 20)
     end
 
+    local accentColor = Theme.Accent
+    if notifyType == "success" then accentColor = Theme.Success
+    elseif notifyType == "warning" then accentColor = Theme.Warning
+    elseif notifyType == "error" then accentColor = Theme.Error end
+
     local Notif = Instance.new("Frame", NotifyGui)
-    Notif.Size = UDim2.fromOffset(230, 0)
+    Notif.Size = UDim2.fromOffset(240, 0)
     Notif.BackgroundColor3 = Theme.Main
     Notif.BackgroundTransparency = 0.1
     Notif.ClipsDescendants = true
     Instance.new("UICorner", Notif).CornerRadius = UDim.new(0, 8)
 
     local Stroke = Instance.new("UIStroke", Notif)
-    Stroke.Color = Theme.Accent
-    Stroke.Transparency = 0.5
+    Stroke.Color = accentColor
+    Stroke.Transparency = 0.4
+    Stroke.Thickness = 1.2
+
+    local Bar = Instance.new("Frame", Notif)
+    Bar.Size = UDim2.new(0, 3, 1, 0)
+    Bar.BackgroundColor3 = accentColor
+    Bar.BorderSizePixel = 0
 
     local T = Instance.new("TextLabel", Notif)
-    T.Size = UDim2.new(1, -20, 0, 22)
-    T.Position = UDim2.fromOffset(10, 6)
+    T.Size = UDim2.new(1, -24, 0, 22)
+    T.Position = UDim2.fromOffset(12, 6)
     T.Text = title or "通知"
-    T.TextColor3 = Theme.Accent
+    T.TextColor3 = accentColor
     T.Font = Enum.Font.GothamBold
     T.TextSize = 12
     T.BackgroundTransparency = 1
     T.TextXAlignment = Enum.TextXAlignment.Left
 
     local D = Instance.new("TextLabel", Notif)
-    D.Size = UDim2.new(1, -20, 0, 26)
-    D.Position = UDim2.fromOffset(10, 26)
+    D.Size = UDim2.new(1, -24, 0, 30)
+    D.Position = UDim2.fromOffset(12, 26)
     D.Text = desc or ""
     D.TextColor3 = Theme.Text
     D.Font = Enum.Font.Gotham
@@ -160,10 +192,10 @@ function vsUI:Notify(title, desc, duration)
     D.TextXAlignment = Enum.TextXAlignment.Left
     D.TextWrapped = true
 
-    TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(230, 60)}):Play()
+    TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(240, 64)}):Play()
     task.delay(duration or 3, function()
         if Notif and Notif.Parent then
-            local tw = TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.fromOffset(230, 0)})
+            local tw = TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.fromOffset(240, 0)})
             tw:Play()
             tw.Completed:Connect(function() Notif:Destroy() end)
         end
@@ -187,7 +219,7 @@ local function BindTooltip(element, text, parentGui)
         tip.Font = Enum.Font.Gotham
         tip.TextSize = 11
         tip.Text = "  " .. text .. "  "
-        tip.ZIndex = 500
+        tip.ZIndex = 1000
         Instance.new("UICorner", tip).CornerRadius = UDim.new(0, 4)
         local st = Instance.new("UIStroke", tip)
         st.Color = Theme.Accent
@@ -266,14 +298,22 @@ function vsUI:CreateWindow(config)
         if preset then for k, v in pairs(preset) do Theme[k] = v end end
     end
 
+    -- 统一的连接/清理管理器
+    function Lib:Track(x)
+        table.insert(Lib.Connections, x)
+        return x
+    end
+
     local ScreenGui = Instance.new("ScreenGui", Parent)
-    ScreenGui.Name = "vsUI_" .. math.random(1000, 9999)
+    ScreenGui.Name = "vsUI_" .. math.floor(tick() * 1000) .. "_" .. math.random(1000, 9999)
     ScreenGui.ResetOnSpawn = false
+    ScreenGui.DisplayOrder = 999
     Lib.ScreenGui = ScreenGui
 
     local UIScale = Instance.new("UIScale", ScreenGui)
     local function ScaleAdjust()
-        local vp = workspace.CurrentCamera.ViewportSize
+        local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+        if not vp then return end
         if vp.X < 600 then
             UIScale.Scale = 0.65
         elseif vp.X < 900 then
@@ -283,10 +323,22 @@ function vsUI:CreateWindow(config)
         end
     end
     ScaleAdjust()
-    table.insert(Lib.Connections, workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ScaleAdjust))
+    Lib:Track(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+        ScaleAdjust()
+        if workspace.CurrentCamera then
+            Lib:Track(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ScaleAdjust))
+        end
+    end))
+    if workspace.CurrentCamera then
+        Lib:Track(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ScaleAdjust))
+    end
+
+    -- 窗口尺寸放大: 680x430 (原 540x330)
+    local MIN_SIZE = Vector2.new(480, 300)
+    local MAX_SIZE = Vector2.new(1000, 700)
 
     local Main = Instance.new("Frame", ScreenGui)
-    Main.Size = UDim2.fromOffset(540, 330)
+    Main.Size = UDim2.fromOffset(680, 430)
     Main.Position = UDim2.fromScale(0.5, 0.45)
     Main.AnchorPoint = Vector2.new(0.5, 0.5)
     Main.BackgroundColor3 = Theme.Main
@@ -298,8 +350,10 @@ function vsUI:CreateWindow(config)
     MainStroke.Color = Theme.Border
     MainStroke.Transparency = Theme.BorderTrans
 
-    local dragCleaner = MakeDraggable(Main, Main)
-    table.insert(Lib.Connections, {Disconnect = dragCleaner})
+    local OriginalSize = Main.Size -- 记录展开时的完整尺寸，供最小化/收起还原使用
+
+    local dragCleaner = MakeDraggable(Main, Main, true)
+    Lib:Track({Disconnect = dragCleaner})
     Lib.Main = Main
 
     -- 顶栏
@@ -318,39 +372,116 @@ function vsUI:CreateWindow(config)
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
     local ToggleKey = (type(config) == "table" and config.ToggleKey) or Enum.KeyCode.RightControl
-    local Colors = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
+    local Colors = {Theme.Error, Theme.Warning, Theme.Success}
     local minimized = false
-    local BodyHeightBeforeMin = Main.Size
 
-    table.insert(Lib.Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- ===== 黄色按钮: 收起整个窗口 + 生成悬浮恢复按钮 =====
+    local RestoreButton = nil
+
+    local function ShowRestoreButton()
+        if RestoreButton then return end
+        RestoreButton = Instance.new("TextButton", ScreenGui)
+        RestoreButton.Name = "vsUI_RestoreButton"
+        RestoreButton.Size = UDim2.fromOffset(46, 46)
+        RestoreButton.Position = UDim2.fromOffset(20, 20)
+        RestoreButton.BackgroundColor3 = Theme.Accent
+        RestoreButton.Text = "≡"
+        RestoreButton.TextColor3 = Theme.Text
+        RestoreButton.Font = Enum.Font.GothamBold
+        RestoreButton.TextSize = 20
+        RestoreButton.AutoButtonColor = false
+        RestoreButton.ZIndex = 900
+        Instance.new("UICorner", RestoreButton).CornerRadius = UDim.new(1, 0)
+
+        local rStroke = Instance.new("UIStroke", RestoreButton)
+        rStroke.Color = Theme.Border
+        rStroke.Transparency = 0.3
+        rStroke.Thickness = 1.5
+
+        RestoreButton.Size = UDim2.fromOffset(0, 0)
+        TweenService:Create(RestoreButton, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(46, 46)}):Play()
+
+        local restoreCleaner = MakeDraggable(RestoreButton, RestoreButton, true)
+        Lib:Track({Disconnect = restoreCleaner})
+
+        BindTooltip(RestoreButton, "点击展开面板 (或按 " .. ToggleKey.Name .. ")", ScreenGui)
+    end
+
+    local function HideRestoreButton()
+        if RestoreButton then
+            local btn = RestoreButton
+            RestoreButton = nil
+            local tw = TweenService:Create(btn, TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.fromOffset(0, 0)})
+            tw:Play()
+            tw.Completed:Connect(function() btn:Destroy() end)
+        end
+    end
+
+    function Lib:CollapseUI()
+        if not Main.Visible then return end
+        minimized = false
+        local tw = TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+            Size = UDim2.fromOffset(Main.Size.X.Offset, 0),
+            BackgroundTransparency = 1
+        })
+        tw:Play()
+        tw.Completed:Connect(function()
+            Main.Visible = false
+            Main.Size = OriginalSize
+            Main.BackgroundTransparency = Theme.Trans
+            ShowRestoreButton()
+        end)
+    end
+
+    function Lib:ExpandUI()
+        HideRestoreButton()
+        Main.Visible = true
+        Main.BackgroundTransparency = Theme.Trans
+        Main.Size = UDim2.fromOffset(Main.Size.X.Offset, 0)
+        TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = OriginalSize
+        }):Play()
+    end
+
+    if type(config) == "table" and config.EnableToggleButton then
+        RestoreButton.MouseButton1Click:Connect(function() Lib:ExpandUI() end)
+    end
+
+    Lib:Track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == ToggleKey then
-            Main.Visible = not Main.Visible
+            if Main.Visible then
+                Lib:CollapseUI()
+            else
+                Lib:ExpandUI()
+            end
         end
     end))
 
     for i, color in ipairs(Colors) do
         local b = Instance.new("TextButton", TopBar)
         b.Size = UDim2.fromOffset(10, 10)
-        b.Position = UDim2.fromOffset(14 + (i-1)*16, 13)
+        b.Position = UDim2.fromOffset(14 + (i - 1) * 16, 13)
         b.BackgroundColor3 = color
         b.Text = ""
         b.AutoButtonColor = false
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
 
         if i == 1 then
-            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function() Lib:Destroy() end))
+            -- 红色: 关闭/销毁
+            Lib:Track(b.MouseButton1Click:Connect(function() Lib:Destroy() end))
             BindTooltip(b, "关闭/销毁", ScreenGui)
         elseif i == 2 then
-            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function() Main.Visible = false end))
-            BindTooltip(b, "隐藏 (按 " .. ToggleKey.Name .. " 唤出)", ScreenGui)
+            -- 黄色: 整个窗口收起 + 悬浮恢复按钮
+            Lib:Track(b.MouseButton1Click:Connect(function() Lib:CollapseUI() end))
+            BindTooltip(b, "隐藏面板 (点击后可用悬浮按钮或 " .. ToggleKey.Name .. " 恢复)", ScreenGui)
         else
-            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
+            -- 绿色: 最小化为标题栏
+            Lib:Track(b.MouseButton1Click:Connect(function()
                 minimized = not minimized
                 if minimized then
-                    BodyHeightBeforeMin = Main.Size
                     TweenService:Create(Main, TweenInfo.new(0.25), {Size = UDim2.fromOffset(Main.Size.X.Offset, 36)}):Play()
                 else
-                    TweenService:Create(Main, TweenInfo.new(0.25), {Size = BodyHeightBeforeMin}):Play()
+                    TweenService:Create(Main, TweenInfo.new(0.25), {Size = OriginalSize}):Play()
                 end
             end))
             BindTooltip(b, "最小化", ScreenGui)
@@ -359,7 +490,7 @@ function vsUI:CreateWindow(config)
 
     -- 侧边栏
     local Sidebar = Instance.new("Frame", Main)
-    Sidebar.Size = UDim2.new(0, 130, 1, -36)
+    Sidebar.Size = UDim2.new(0, 150, 1, -36)
     Sidebar.Position = UDim2.fromOffset(0, 36)
     Sidebar.BackgroundColor3 = Theme.Sidebar
     Sidebar.BackgroundTransparency = 0.2
@@ -390,7 +521,7 @@ function vsUI:CreateWindow(config)
     SearchPad.PaddingLeft = UDim.new(0, 8)
 
     Lib.SearchableElements = {}
-    table.insert(Lib.Connections, SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    Lib:Track(SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         local q = SearchBox.Text:lower()
         for _, entry in ipairs(Lib.SearchableElements) do
             if entry.Page.Visible then
@@ -405,9 +536,43 @@ function vsUI:CreateWindow(config)
 
     -- 主内容区
     local Container = Instance.new("Frame", Main)
-    Container.Size = UDim2.new(1, -140, 1, -44)
-    Container.Position = UDim2.fromOffset(135, 40)
+    Container.Size = UDim2.new(1, -158, 1, -44)
+    Container.Position = UDim2.fromOffset(153, 40)
     Container.BackgroundTransparency = 1
+
+    -- 右下角拖拽缩放手柄
+    local ResizeHandle = Instance.new("TextButton", Main)
+    ResizeHandle.Size = UDim2.fromOffset(16, 16)
+    ResizeHandle.Position = UDim2.new(1, -16, 1, -16)
+    ResizeHandle.BackgroundTransparency = 1
+    ResizeHandle.Text = "◢"
+    ResizeHandle.TextColor3 = Theme.TextSecondary
+    ResizeHandle.Font = Enum.Font.GothamBold
+    ResizeHandle.TextSize = 14
+    ResizeHandle.AutoButtonColor = false
+    ResizeHandle.ZIndex = 50
+    do
+        local resizing = false
+        Lib:Track(ResizeHandle.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                resizing = true
+            end
+        end))
+        Lib:Track(UserInputService.InputChanged:Connect(function(input)
+            if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local mousePos = UserInputService:GetMouseLocation()
+                local newW = math.clamp(mousePos.X - Main.AbsolutePosition.X, MIN_SIZE.X, MAX_SIZE.X)
+                local newH = math.clamp(mousePos.Y - Main.AbsolutePosition.Y, MIN_SIZE.Y, MAX_SIZE.Y)
+                Main.Size = UDim2.fromOffset(newW, newH)
+                OriginalSize = Main.Size
+            end
+        end))
+        Lib:Track(UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                resizing = false
+            end
+        end))
+    end
 
     function Lib:RegisterSearchable(frame, text, page)
         table.insert(Lib.SearchableElements, {Instance = frame, Text = text or "", Page = page})
@@ -435,7 +600,7 @@ function vsUI:CreateWindow(config)
         local ok, encoded = pcall(function() return HttpService:JSONEncode(Lib.Flags) end)
         if ok then
             local success = SafeWriteFile((fileName or Lib.ConfigName) .. ".json", encoded)
-            vsUI:Notify("配置保存", success and "成功导出配置文件" or "保存失败：环境不支持", 3)
+            vsUI:Notify("配置保存", success and "成功导出配置文件" or "保存失败：环境不支持", 3, success and "success" or "error")
             return success
         end
         return false
@@ -444,13 +609,13 @@ function vsUI:CreateWindow(config)
     function Lib:LoadConfig(fileName)
         local raw = SafeReadFile((fileName or Lib.ConfigName) .. ".json")
         if not raw then
-            vsUI:Notify("配置读取", "未找到指定配置文件", 3)
+            vsUI:Notify("配置读取", "未找到指定配置文件", 3, "warning")
             return false
         end
         local HttpService = game:GetService("HttpService")
         local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
         if not ok or type(data) ~= "table" then
-            vsUI:Notify("配置读取", "解析文件失败", 3)
+            vsUI:Notify("配置读取", "解析文件失败", 3, "error")
             return false
         end
         for flag, value in pairs(data) do
@@ -460,8 +625,24 @@ function vsUI:CreateWindow(config)
                 pcall(function() obj.Set(value) end)
             end
         end
-        vsUI:Notify("配置读取", "成功加载配置", 3)
+        vsUI:Notify("配置读取", "成功加载配置", 3, "success")
         return true
+    end
+
+    function Lib:Destroy()
+        for _, conn in pairs(Lib.Connections) do
+            pcall(function()
+                if typeof(conn) == "RBXScriptConnection" then
+                    conn:Disconnect()
+                elseif type(conn) == "table" and conn.Disconnect then
+                    conn:Disconnect()
+                elseif type(conn) == "function" then
+                    conn()
+                end
+            end)
+        end
+        if RestoreButton then RestoreButton:Destroy() end
+        if ScreenGui then ScreenGui:Destroy() end
     end
 
     function Lib:AddTab(tabConfig)
@@ -493,15 +674,15 @@ function vsUI:CreateWindow(config)
         PageLayout.Padding = UDim.new(0, 6)
         PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-        table.insert(Lib.Connections, PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        Lib:Track(PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
         end))
 
-        table.insert(Lib.Connections, TabBtn.MouseButton1Click:Connect(function()
-            for _, v in pairs(Container:GetChildren()) do 
-                if v:IsA("ScrollingFrame") then v.Visible = false end 
+        Lib:Track(TabBtn.MouseButton1Click:Connect(function()
+            for _, v in pairs(Container:GetChildren()) do
+                if v:IsA("ScrollingFrame") then v.Visible = false end
             end
-            for _, btn in pairs(Lib.TabButtons) do 
+            for _, btn in pairs(Lib.TabButtons) do
                 btn.TextColor3 = Theme.TextSecondary
                 btn.BackgroundTransparency = 1
             end
@@ -510,10 +691,10 @@ function vsUI:CreateWindow(config)
             TabBtn.BackgroundTransparency = 0.4
         end))
 
-        if not Lib.CurrentTab then 
+        if not Lib.CurrentTab then
             Lib.CurrentTab = Page
             Page.Visible = true
-            TabBtn.TextColor3 = Theme.Text 
+            TabBtn.TextColor3 = Theme.Text
             TabBtn.BackgroundTransparency = 0.4
         end
 
@@ -580,7 +761,7 @@ function vsUI:CreateWindow(config)
             stroke.Color = Theme.Border
             stroke.Transparency = Theme.BorderTrans
 
-            table.insert(Lib.Connections, Btn.MouseButton1Click:Connect(function()
+            Lib:Track(Btn.MouseButton1Click:Connect(function()
                 pcall(callback)
             end))
 
@@ -634,7 +815,7 @@ function vsUI:CreateWindow(config)
                 pcall(function() callback(state) end)
             end
 
-            table.insert(Lib.Connections, S.MouseButton1Click:Connect(function()
+            Lib:Track(S.MouseButton1Click:Connect(function()
                 UpdateState(not state)
             end))
 
@@ -709,20 +890,20 @@ function vsUI:CreateWindow(config)
                 pcall(function() callback(val) end)
             end
 
-            table.insert(Lib.Connections, SFrame.InputBegan:Connect(function(i)
+            Lib:Track(SFrame.InputBegan:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
                     dragging = true
                     Update(i)
                 end
             end))
 
-            table.insert(Lib.Connections, UserInputService.InputChanged:Connect(function(i)
+            Lib:Track(UserInputService.InputChanged:Connect(function(i)
                 if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
                     Update(i)
                 end
             end))
 
-            table.insert(Lib.Connections, UserInputService.InputEnded:Connect(function(i)
+            Lib:Track(UserInputService.InputEnded:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
                     dragging = false
                 end
@@ -745,83 +926,216 @@ function vsUI:CreateWindow(config)
             return Elements
         end
 
-        -- Dropdown
+        -- Dropdown (修复: 展开列表不再挤压下方元素, 按钮改用强调色不再糊背景)
         function Elements:AddDropdown(cfg)
+            local text = cfg.Text or cfg.Name or "Dropdown"
             local list = cfg.Options or cfg.List or {}
+            local multi = cfg.Multi or false
+            local default = cfg.Default
             local callback = cfg.Callback or function() end
 
             local DFrame = Instance.new("Frame", Page)
-            DFrame.Size = UDim2.new(0.96, 0, 0, 32)
-            DFrame.BackgroundColor3 = Theme.Card
-            DFrame.BackgroundTransparency = 0.2
-            DFrame.ZIndex = 20
+            DFrame.Size = UDim2.new(0.96, 0, 0, 34)
+            DFrame.BackgroundColor3 = Theme.Accent
+            DFrame.BackgroundTransparency = 0.15
+            DFrame.ZIndex = 5
             Instance.new("UICorner", DFrame).CornerRadius = UDim.new(0, 6)
+            local dStroke = Instance.new("UIStroke", DFrame)
+            dStroke.Color = Theme.Border
+            dStroke.Transparency = 0.15
+            dStroke.Thickness = 1.2
 
-            local Btn = Instance.new("TextButton", DFrame)
-            Btn.Size = UDim2.new(1, 0, 0, 32)
-            Btn.BackgroundTransparency = 1
-            Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(cfg.Default or "请选择")
-            Btn.TextColor3 = Theme.Text
-            Btn.Font = Enum.Font.GothamMedium
-            Btn.TextSize = 11
-            Btn.TextXAlignment = Enum.TextXAlignment.Left
+            local L = Instance.new("TextLabel", DFrame)
+            L.Size = UDim2.new(0.45, 0, 1, 0)
+            L.Position = UDim2.fromOffset(10, 0)
+            L.BackgroundTransparency = 1
+            L.Text = text
+            L.TextColor3 = Theme.Text
+            L.Font = Enum.Font.GothamBold
+            L.TextSize = 11
+            L.TextXAlignment = Enum.TextXAlignment.Left
+            L.ZIndex = 6
 
-            local DropContainer = Instance.new("Frame", DFrame)
-            DropContainer.Size = UDim2.new(1, 0, 0, 0)
-            DropContainer.Position = UDim2.fromOffset(0, 34)
-            DropContainer.BackgroundColor3 = Theme.Card
-            DropContainer.BackgroundTransparency = 0.1
-            DropContainer.ClipsDescendants = true
-            DropContainer.ZIndex = 25
-            Instance.new("UICorner", DropContainer).CornerRadius = UDim.new(0, 6)
+            local SelectedLabel = Instance.new("TextLabel", DFrame)
+            SelectedLabel.Size = UDim2.new(0.45, -20, 1, 0)
+            SelectedLabel.Position = UDim2.new(0.5, 0, 0, 0)
+            SelectedLabel.BackgroundTransparency = 1
+            SelectedLabel.Text = "选择..."
+            SelectedLabel.TextColor3 = Theme.Text
+            SelectedLabel.Font = Enum.Font.Gotham
+            SelectedLabel.TextSize = 11
+            SelectedLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            SelectedLabel.TextXAlignment = Enum.TextXAlignment.Right
+            SelectedLabel.ZIndex = 6
 
-            local DropLayout = Instance.new("UIListLayout", DropContainer)
-            DropLayout.Padding = UDim.new(0, 0)
+            local Arrow = Instance.new("TextLabel", DFrame)
+            Arrow.Size = UDim2.fromOffset(20, 20)
+            Arrow.Position = UDim2.new(1, -26, 0.5, -10)
+            Arrow.BackgroundTransparency = 1
+            Arrow.Text = "▾"
+            Arrow.TextColor3 = Theme.Text
+            Arrow.Font = Enum.Font.GothamBold
+            Arrow.TextSize = 14
+            Arrow.ZIndex = 6
 
-            local dropped = false
-            table.insert(Lib.Connections, Btn.MouseButton1Click:Connect(function()
-                dropped = not dropped
-                local targetSize = dropped and UDim2.new(1, 0, 0, math.min(#list * 26, 130)) or UDim2.new(1, 0, 0, 0)
-                TweenService:Create(DropContainer, TweenInfo.new(0.2), {Size = targetSize}):Play()
-            end))
+            local Click = Instance.new("TextButton", DFrame)
+            Click.Size = UDim2.fromScale(1, 1)
+            Click.BackgroundTransparency = 1
+            Click.Text = ""
+            Click.ZIndex = 7
 
-            for _, v in pairs(list) do
-                local opt = Instance.new("TextButton", DropContainer)
-                opt.Size = UDim2.new(1, 0, 0, 26)
-                opt.BackgroundColor3 = Theme.Card
-                opt.BackgroundTransparency = 0.5
-                opt.Text = "    " .. tostring(v)
-                opt.TextColor3 = Theme.TextSecondary
-                opt.Font = Enum.Font.Gotham
-                opt.TextSize = 11
-                opt.TextXAlignment = Enum.TextXAlignment.Left
+            -- 选项面板挂在 ScreenGui 顶层, 绝对定位悬浮显示, 不占用 Page 的布局空间
+            local Overlay = Instance.new("Frame", ScreenGui)
+            Overlay.Name = "vsUI_DropdownOverlay"
+            Overlay.BackgroundColor3 = Theme.Sidebar
+            Overlay.BackgroundTransparency = 0.05
+            Overlay.Visible = false
+            Overlay.ZIndex = 500
+            Overlay.ClipsDescendants = true
+            Instance.new("UICorner", Overlay).CornerRadius = UDim.new(0, 6)
+            local oStroke = Instance.new("UIStroke", Overlay)
+            oStroke.Color = Theme.Accent
+            oStroke.Transparency = 0.2
 
-                table.insert(Lib.Connections, opt.MouseButton1Click:Connect(function()
-                    Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(v)
-                    dropped = false
-                    TweenService:Create(DropContainer, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-                    if cfg.Flag then Lib.Flags[cfg.Flag] = v end
-                    pcall(function() callback(v) end)
-                end))
+            local OScroll = Instance.new("ScrollingFrame", Overlay)
+            OScroll.Size = UDim2.fromScale(1, 1)
+            OScroll.BackgroundTransparency = 1
+            OScroll.ScrollBarThickness = 3
+            OScroll.ScrollBarImageColor3 = Theme.Accent
+            OScroll.ZIndex = 501
+
+            local OList = Instance.new("UIListLayout", OScroll)
+            OList.SortOrder = Enum.SortOrder.LayoutOrder
+
+            local optionHeight = 26
+            local maxVisible = 6
+            local selected = {}
+            if default then
+                if type(default) == "table" then
+                    for _, v in ipairs(default) do selected[v] = true end
+                else
+                    selected[default] = true
+                end
             end
 
-            Lib:RegisterSearchable(DFrame, cfg.Text or cfg.Name or "下拉框", Page)
-            if cfg.Tooltip then BindTooltip(Btn, cfg.Tooltip, ScreenGui) end
+            local function UpdateSelectedLabel()
+                local names = {}
+                for k, v in pairs(selected) do if v then table.insert(names, k) end end
+                if #names == 0 then
+                    SelectedLabel.Text = "选择..."
+                elseif #names == 1 then
+                    SelectedLabel.Text = names[1]
+                else
+                    SelectedLabel.Text = #names .. " 项已选"
+                end
+            end
+            UpdateSelectedLabel()
+
+            local optionButtons = {}
+            local function RebuildOptions()
+                for _, b in ipairs(optionButtons) do b:Destroy() end
+                optionButtons = {}
+                for _, opt in ipairs(list) do
+                    local OBtn = Instance.new("TextButton", OScroll)
+                    OBtn.Size = UDim2.new(1, 0, 0, optionHeight)
+                    OBtn.BackgroundTransparency = selected[opt] and 0.6 or 1
+                    OBtn.BackgroundColor3 = Theme.Accent
+                    OBtn.Text = "  " .. tostring(opt)
+                    OBtn.TextColor3 = Theme.Text
+                    OBtn.Font = Enum.Font.Gotham
+                    OBtn.TextSize = 11
+                    OBtn.TextXAlignment = Enum.TextXAlignment.Left
+                    OBtn.AutoButtonColor = false
+                    OBtn.ZIndex = 502
+                    OBtn.MouseButton1Click:Connect(function()
+                        if multi then
+                            selected[opt] = not selected[opt]
+                            OBtn.BackgroundTransparency = selected[opt] and 0.6 or 1
+                        else
+                            selected = {[opt] = true}
+                            RebuildOptions()
+                            Overlay.Visible = false
+                            Arrow.Text = "▾"
+                        end
+                        UpdateSelectedLabel()
+                        if cfg.Flag then Lib.Flags[cfg.Flag] = multi and selected or opt end
+                        pcall(function() callback(multi and selected or opt) end)
+                    end)
+                    table.insert(optionButtons, OBtn)
+                end
+                OScroll.CanvasSize = UDim2.new(0, 0, 0, #list * optionHeight)
+            end
+            RebuildOptions()
+
+            local open = false
+            local function CloseOverlay()
+                open = false
+                Overlay.Visible = false
+                Arrow.Text = "▾"
+            end
+            local function OpenOverlay()
+                open = true
+                local visibleCount = math.min(#list, maxVisible)
+                Overlay.Position = UDim2.fromOffset(DFrame.AbsolutePosition.X, DFrame.AbsolutePosition.Y + DFrame.AbsoluteSize.Y + 4)
+                Overlay.Size = UDim2.fromOffset(DFrame.AbsoluteSize.X, math.max(visibleCount, 1) * optionHeight)
+                Overlay.Visible = true
+                Arrow.Text = "▴"
+            end
+
+            Click.MouseButton1Click:Connect(function()
+                if open then CloseOverlay() else OpenOverlay() end
+            end)
+
+            Lib:Track(UserInputService.InputBegan:Connect(function(input)
+                if open and input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local oPos, oSize = Overlay.AbsolutePosition, Overlay.AbsoluteSize
+                    local inOverlay = mousePos.X >= oPos.X and mousePos.X <= oPos.X + oSize.X and mousePos.Y >= oPos.Y and mousePos.Y <= oPos.Y + oSize.Y
+                    local dPos, dSize = DFrame.AbsolutePosition, DFrame.AbsoluteSize
+                    local inDropdown = mousePos.X >= dPos.X and mousePos.X <= dPos.X + dSize.X and mousePos.Y >= dPos.Y and mousePos.Y <= dPos.Y + dSize.Y
+                    if not inOverlay and not inDropdown then
+                        CloseOverlay()
+                    end
+                end
+            end))
+
+            Lib:Track(Page:GetPropertyChangedSignal("Visible"):Connect(function()
+                if not Page.Visible then CloseOverlay() end
+            end))
+
+            Lib:RegisterSearchable(DFrame, text, Page)
+            if cfg.Tooltip then BindTooltip(DFrame, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
-                Lib.Flags[cfg.Flag] = cfg.Default
+                Lib.Flags[cfg.Flag] = multi and selected or default
                 Lib.FlagObjects[cfg.Flag] = {
-                    Get = function() return Lib.Flags[cfg.Flag] end,
+                    Get = function() return multi and selected or default end,
                     Set = function(v)
-                        Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(v)
+                        if multi and type(v) == "table" then
+                            selected = v
+                        else
+                            selected = {[v] = true}
+                        end
+                        RebuildOptions()
+                        UpdateSelectedLabel()
                     end
                 }
             end
+
+            function Elements:SetDropdownOptions(newList)
+                list = newList
+                RebuildOptions()
+            end
+
             return Elements
         end
 
-        -- Input
+        -- 新增: 文本输入框
         function Elements:AddInput(cfg)
+            local text = cfg.Text or cfg.Name or "Input"
+            local placeholder = cfg.Placeholder or ""
+            local default = cfg.Default or ""
             local callback = cfg.Callback or function() end
+
             local IFrame = Instance.new("Frame", Page)
             IFrame.Size = UDim2.new(0.96, 0, 0, 32)
             IFrame.BackgroundColor3 = Theme.Card
@@ -832,61 +1146,50 @@ function vsUI:CreateWindow(config)
             L.Size = UDim2.new(0.4, 0, 1, 0)
             L.Position = UDim2.fromOffset(10, 0)
             L.BackgroundTransparency = 1
-            L.Text = cfg.Text or cfg.Name or "输入框"
+            L.Text = text
             L.TextColor3 = Theme.Text
             L.Font = Enum.Font.GothamMedium
             L.TextSize = 11
             L.TextXAlignment = Enum.TextXAlignment.Left
 
-            local B = Instance.new("TextBox", IFrame)
-            B.Size = UDim2.new(0.5, 0, 0, 22)
-            B.Position = UDim2.new(1, -10, 0.5, -11)
-            B.AnchorPoint = Vector2.new(1, 0)
-            B.BackgroundColor3 = Theme.Sidebar
-            B.Text = cfg.Default or ""
-            B.PlaceholderText = cfg.Placeholder or "..."
-            B.TextColor3 = Theme.Text
-            B.Font = Enum.Font.Gotham
-            B.TextSize = 11
-            Instance.new("UICorner", B).CornerRadius = UDim.new(0, 4)
+            local Box = Instance.new("TextBox", IFrame)
+            Box.Size = UDim2.new(0.55, -10, 0, 22)
+            Box.Position = UDim2.new(0.42, 0, 0.5, -11)
+            Box.BackgroundColor3 = Theme.Sidebar
+            Box.BackgroundTransparency = 0.1
+            Box.Text = default
+            Box.PlaceholderText = placeholder
+            Box.TextColor3 = Theme.Text
+            Box.PlaceholderColor3 = Theme.TextSecondary
+            Box.Font = Enum.Font.Gotham
+            Box.TextSize = 11
+            Box.ClearTextOnFocus = false
+            Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 4)
+            local bPad = Instance.new("UIPadding", Box)
+            bPad.PaddingLeft = UDim.new(0, 6)
 
-            if cfg.Numeric then
-                table.insert(Lib.Connections, B:GetPropertyChangedSignal("Text"):Connect(function()
-                    local cleaned = B.Text:gsub("[^%d%.%-]", "")
-                    if cleaned ~= B.Text then B.Text = cleaned end
-                end))
-            end
-
-            table.insert(Lib.Connections, B.FocusLost:Connect(function(e)
-                local val = B.Text
-                if cfg.Numeric then
-                    local n = tonumber(val) or 0
-                    if cfg.Min then n = math.max(cfg.Min, n) end
-                    if cfg.Max then n = math.min(cfg.Max, n) end
-                    val = n
-                    B.Text = tostring(n)
-                end
-                if cfg.Flag then Lib.Flags[cfg.Flag] = val end
-                pcall(function() callback(val, e) end)
+            Lib:Track(Box.FocusLost:Connect(function(enterPressed)
+                if cfg.Flag then Lib.Flags[cfg.Flag] = Box.Text end
+                pcall(function() callback(Box.Text, enterPressed) end)
             end))
 
-            Lib:RegisterSearchable(IFrame, cfg.Text or cfg.Name or "输入框", Page)
+            Lib:RegisterSearchable(IFrame, text, Page)
             if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
-                Lib.Flags[cfg.Flag] = cfg.Default
+                Lib.Flags[cfg.Flag] = default
                 Lib.FlagObjects[cfg.Flag] = {
-                    Get = function() return B.Text end,
-                    Set = function(v) B.Text = tostring(v) end
+                    Get = function() return Box.Text end,
+                    Set = function(v) Box.Text = tostring(v) end
                 }
             end
             return Elements
         end
 
-        -- Keybind
+        -- 新增: 按键绑定
         function Elements:AddKeybind(cfg)
-            local currentKey = cfg.Default or Enum.KeyCode.Unknown
+            local text = cfg.Text or cfg.Name or "Keybind"
+            local default = cfg.Default or Enum.KeyCode.Unknown
             local callback = cfg.Callback or function() end
-            local listening = false
 
             local KFrame = Instance.new("Frame", Page)
             KFrame.Size = UDim2.new(0.96, 0, 0, 32)
@@ -898,86 +1201,216 @@ function vsUI:CreateWindow(config)
             L.Size = UDim2.new(0.6, 0, 1, 0)
             L.Position = UDim2.fromOffset(10, 0)
             L.BackgroundTransparency = 1
-            L.Text = cfg.Text or cfg.Name or "按键绑定"
+            L.Text = text
             L.TextColor3 = Theme.Text
             L.Font = Enum.Font.GothamMedium
             L.TextSize = 11
             L.TextXAlignment = Enum.TextXAlignment.Left
 
             local KeyBtn = Instance.new("TextButton", KFrame)
-            KeyBtn.Size = UDim2.fromOffset(70, 20)
-            KeyBtn.Position = UDim2.new(1, -80, 0.5, -10)
-            KeyBtn.BackgroundColor3 = Theme.Sidebar
-            KeyBtn.Text = currentKey.Name
-            KeyBtn.TextColor3 = Theme.Accent
+            KeyBtn.Size = UDim2.fromOffset(80, 22)
+            KeyBtn.Position = UDim2.new(1, -90, 0.5, -11)
+            KeyBtn.BackgroundColor3 = Theme.Accent
+            KeyBtn.BackgroundTransparency = 0.3
+            KeyBtn.Text = default.Name
+            KeyBtn.TextColor3 = Theme.Text
             KeyBtn.Font = Enum.Font.GothamBold
-            KeyBtn.TextSize = 11
+            KeyBtn.TextSize = 10
             KeyBtn.AutoButtonColor = false
             Instance.new("UICorner", KeyBtn).CornerRadius = UDim.new(0, 4)
 
-            table.insert(Lib.Connections, KeyBtn.MouseButton1Click:Connect(function()
-                if listening then return end
+            local currentKey = default
+            local listening = false
+
+            Lib:Track(KeyBtn.MouseButton1Click:Connect(function()
                 listening = true
-                KeyBtn.Text = "按下按键..."
+                KeyBtn.Text = "..."
             end))
 
-            table.insert(Lib.Connections, UserInputService.InputBegan:Connect(function(input, gpe)
+            Lib:Track(UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 if listening and input.UserInputType == Enum.UserInputType.Keyboard then
                     currentKey = input.KeyCode
                     KeyBtn.Text = currentKey.Name
                     listening = false
-                    if cfg.Flag then Lib.Flags[cfg.Flag] = currentKey end
-                    pcall(function() callback(currentKey) end)
-                elseif not listening and not gpe and input.KeyCode == currentKey then
-                    pcall(function() callback(currentKey) end)
+                    if cfg.Flag then Lib.Flags[cfg.Flag] = currentKey.Name end
+                elseif not listening and not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentKey then
+                    pcall(function() callback() end)
                 end
             end))
 
-            Lib:RegisterSearchable(KFrame, cfg.Text or cfg.Name or "按键绑定", Page)
+            Lib:RegisterSearchable(KFrame, text, Page)
             if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
-                Lib.Flags[cfg.Flag] = currentKey
+                Lib.Flags[cfg.Flag] = currentKey.Name
                 Lib.FlagObjects[cfg.Flag] = {
-                    Get = function() return currentKey end,
+                    Get = function() return currentKey.Name end,
                     Set = function(v)
-                        currentKey = v
-                        KeyBtn.Text = currentKey.Name
+                        local ok, key = pcall(function() return Enum.KeyCode[v] end)
+                        if ok and key then
+                            currentKey = key
+                            KeyBtn.Text = key.Name
+                        end
                     end
                 }
             end
             return Elements
         end
 
-        return Elements
-    end
+        -- 新增: 简易取色器 (RGB 滑块, 悬浮面板不挤压布局)
+        function Elements:AddColorPicker(cfg)
+            local text = cfg.Text or cfg.Name or "Color"
+            local default = cfg.Default or Color3.fromRGB(255, 255, 255)
+            local callback = cfg.Callback or function() end
 
-    -- 快捷内置设置 Tab
-    function Lib:AddSettingsTab()
-        local SettingsTab = Lib:AddTab("设置")
-        SettingsTab:AddSection("主题切换")
-        SettingsTab:AddDropdown({
-            Text = "选择预设主题",
-            Options = {"PurpleDark", "PurpleLight", "MidnightPurple"},
-            Default = "PurpleDark",
-            Callback = function(val) Lib:SetTheme(val) end
-        })
-        SettingsTab:AddSection("配置文件管理")
-        SettingsTab:AddButton({ Text = "保存当前配置", Callback = function() Lib:SaveConfig() end })
-        SettingsTab:AddButton({ Text = "加载已有配置", Callback = function() Lib:LoadConfig() end })
-        return SettingsTab
-    end
+            local CFrame = Instance.new("Frame", Page)
+            CFrame.Size = UDim2.new(0.96, 0, 0, 32)
+            CFrame.BackgroundColor3 = Theme.Card
+            CFrame.BackgroundTransparency = 0.2
+            Instance.new("UICorner", CFrame).CornerRadius = UDim.new(0, 6)
 
-    function Lib:Destroy()
-        for _, conn in pairs(self.Connections) do
-            pcall(function()
-                if type(conn) == "table" and conn.Disconnect then
-                    conn:Disconnect()
-                elseif type(conn) == "function" then
-                    conn()
+            local L = Instance.new("TextLabel", CFrame)
+            L.Size = UDim2.new(0.6, 0, 1, 0)
+            L.Position = UDim2.fromOffset(10, 0)
+            L.BackgroundTransparency = 1
+            L.Text = text
+            L.TextColor3 = Theme.Text
+            L.Font = Enum.Font.GothamMedium
+            L.TextSize = 11
+            L.TextXAlignment = Enum.TextXAlignment.Left
+
+            local Swatch = Instance.new("TextButton", CFrame)
+            Swatch.Size = UDim2.fromOffset(40, 20)
+            Swatch.Position = UDim2.new(1, -50, 0.5, -10)
+            Swatch.BackgroundColor3 = default
+            Swatch.Text = ""
+            Swatch.AutoButtonColor = false
+            Instance.new("UICorner", Swatch).CornerRadius = UDim.new(0, 4)
+            local swStroke = Instance.new("UIStroke", Swatch)
+            swStroke.Color = Theme.Border
+            swStroke.Transparency = 0.3
+
+            local Overlay = Instance.new("Frame", ScreenGui)
+            Overlay.Name = "vsUI_ColorOverlay"
+            Overlay.BackgroundColor3 = Theme.Sidebar
+            Overlay.Size = UDim2.fromOffset(180, 110)
+            Overlay.Visible = false
+            Overlay.ZIndex = 500
+            Instance.new("UICorner", Overlay).CornerRadius = UDim.new(0, 6)
+            local ocStroke = Instance.new("UIStroke", Overlay)
+            ocStroke.Color = Theme.Accent
+            ocStroke.Transparency = 0.2
+
+            local r, g, b = default.R * 255, default.G * 255, default.B * 255
+            local sliders = {}
+            local function BuildChannel(labelText, index, val)
+                local row = Instance.new("Frame", Overlay)
+                row.Size = UDim2.new(1, -16, 0, 26)
+                row.Position = UDim2.fromOffset(8, 8 + (index - 1) * 30)
+                row.BackgroundTransparency = 1
+
+                local rl = Instance.new("TextLabel", row)
+                rl.Size = UDim2.fromOffset(14, 20)
+                rl.BackgroundTransparency = 1
+                rl.Text = labelText
+                rl.TextColor3 = Theme.Text
+                rl.Font = Enum.Font.GothamBold
+                rl.TextSize = 11
+
+                local bar = Instance.new("Frame", row)
+                bar.Size = UDim2.new(1, -50, 0, 4)
+                bar.Position = UDim2.fromOffset(20, 9)
+                bar.BackgroundColor3 = Color3.fromRGB(45, 35, 65)
+                Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+                local fill = Instance.new("Frame", bar)
+                fill.Size = UDim2.fromScale(val / 255, 1)
+                fill.BackgroundColor3 = Theme.Accent
+                Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+                local vl = Instance.new("TextLabel", row)
+                vl.Size = UDim2.fromOffset(24, 20)
+                vl.Position = UDim2.new(1, -24, 0, 0)
+                vl.BackgroundTransparency = 1
+                vl.Text = tostring(math.floor(val))
+                vl.TextColor3 = Theme.TextSecondary
+                vl.Font = Enum.Font.Gotham
+                vl.TextSize = 10
+
+                local dragging = false
+                local function Update(input)
+                    local mx = input and input.Position.X or UserInputService:GetMouseLocation().X
+                    local p = math.clamp((mx - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+                    fill.Size = UDim2.fromScale(p, 1)
+                    local newVal = p * 255
+                    vl.Text = tostring(math.floor(newVal))
+                    sliders[index] = newVal
+                    local col = Color3.fromRGB(math.floor(sliders[1]), math.floor(sliders[2]), math.floor(sliders[3]))
+                    Swatch.BackgroundColor3 = col
+                    if cfg.Flag then Lib.Flags[cfg.Flag] = col end
+                    pcall(function() callback(col) end)
                 end
+                sliders[index] = val
+
+                Lib:Track(row.InputBegan:Connect(function(i)
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; Update(i) end
+                end))
+                Lib:Track(UserInputService.InputChanged:Connect(function(i)
+                    if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then Update(i) end
+                end))
+                Lib:Track(UserInputService.InputEnded:Connect(function(i)
+                    if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+                end))
+            end
+            BuildChannel("R", 1, r)
+            BuildChannel("G", 2, g)
+            BuildChannel("B", 3, b)
+
+            local open = false
+            Swatch.MouseButton1Click:Connect(function()
+                open = not open
+                if open then
+                    Overlay.Position = UDim2.fromOffset(Swatch.AbsolutePosition.X - 140, Swatch.AbsolutePosition.Y + 26)
+                end
+                Overlay.Visible = open
             end)
+
+            Lib:Track(UserInputService.InputBegan:Connect(function(input)
+                if open and input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local oPos, oSize = Overlay.AbsolutePosition, Overlay.AbsoluteSize
+                    local inOverlay = mousePos.X >= oPos.X and mousePos.X <= oPos.X + oSize.X and mousePos.Y >= oPos.Y and mousePos.Y <= oPos.Y + oSize.Y
+                    local sPos, sSize = Swatch.AbsolutePosition, Swatch.AbsoluteSize
+                    local inSwatch = mousePos.X >= sPos.X and mousePos.X <= sPos.X + sSize.X and mousePos.Y >= sPos.Y and mousePos.Y <= sPos.Y + sSize.Y
+                    if not inOverlay and not inSwatch then
+                        open = false
+                        Overlay.Visible = false
+                    end
+                end
+            end))
+
+            Lib:RegisterSearchable(CFrame, text, Page)
+            if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
+            if cfg.Flag then
+                Lib.Flags[cfg.Flag] = default
+                Lib.FlagObjects[cfg.Flag] = {
+                    Get = function() return Swatch.BackgroundColor3 end,
+                    Set = function(v)
+                        Swatch.BackgroundColor3 = v
+                    end
+                }
+            end
+            return Elements
         end
-        pcall(function() ScreenGui:Destroy() end)
+
+        -- 便捷方法: 一键添加 保存/读取配置 按钮
+        function Elements:AddConfigButtons()
+            Elements:AddButton({Text = "保存配置", Callback = function() Lib:SaveConfig() end})
+            Elements:AddButton({Text = "读取配置", Callback = function() Lib:LoadConfig() end})
+            return Elements
+        end
+
+        Lib.Tabs[name] = Elements
+        return Elements
     end
 
     return Lib
