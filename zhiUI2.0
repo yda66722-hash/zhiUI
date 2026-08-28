@@ -1,68 +1,61 @@
-local zhiUI = {}
+local vsUI = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
 
 local Parent = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 清理旧 UI
+-- 清理旧 UI (保持兼容清理 vsUI 前缀)
 for _, v in pairs(Parent:GetChildren()) do
-    if v.Name:sub(1,6) == "zhiUI_" then v:Destroy() end
+    if v.Name:sub(1, 5) == "vsUI_" or v.Name:sub(1, 6) == "zhiUI_" then 
+        v:Destroy() 
+    end
 end
 
--- 主题预设
+-- 主题预设 (默认主色调已调整为紫色系)
 local ThemePresets = {
-    Dark = {
-        Main = Color3.fromRGB(20, 24, 38),
-        Sidebar = Color3.fromRGB(13, 16, 27),
-        Card = Color3.fromRGB(30, 37, 56),
-        Accent = Color3.fromRGB(99, 102, 241),
-        Text = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(148, 163, 184),
-        Border = Color3.fromRGB(255, 255, 255),
-        BorderTrans = 0.92,
-        Trans = 0.15
+    PurpleDark = { -- 默认深紫主题
+        Main = Color3.fromRGB(19, 15, 28),
+        Sidebar = Color3.fromRGB(13, 10, 20),
+        Card = Color3.fromRGB(29, 22, 43),
+        Accent = Color3.fromRGB(168, 85, 247),
+        AccentGradient = Color3.fromRGB(147, 51, 234),
+        Text = Color3.fromRGB(243, 232, 255),
+        TextSecondary = Color3.fromRGB(168, 153, 194),
+        Border = Color3.fromRGB(192, 132, 252),
+        BorderTrans = 0.88,
+        Trans = 0.1
     },
-    Light = {
-        Main = Color3.fromRGB(240, 242, 247),
-        Sidebar = Color3.fromRGB(225, 228, 235),
+    PurpleLight = { -- 浅紫明亮主题
+        Main = Color3.fromRGB(245, 240, 255),
+        Sidebar = Color3.fromRGB(233, 223, 255),
         Card = Color3.fromRGB(255, 255, 255),
-        Accent = Color3.fromRGB(79, 70, 229),
-        Text = Color3.fromRGB(20, 22, 30),
-        TextSecondary = Color3.fromRGB(100, 105, 120),
-        Border = Color3.fromRGB(0, 0, 0),
+        Accent = Color3.fromRGB(147, 51, 234),
+        AccentGradient = Color3.fromRGB(126, 34, 206),
+        Text = Color3.fromRGB(24, 9, 41),
+        TextSecondary = Color3.fromRGB(109, 90, 140),
+        Border = Color3.fromRGB(168, 85, 247),
+        BorderTrans = 0.85,
+        Trans = 0.05
+    },
+    MidnightPurple = { -- 深夜极暗紫
+        Main = Color3.fromRGB(10, 6, 15),
+        Sidebar = Color3.fromRGB(6, 3, 10),
+        Card = Color3.fromRGB(18, 12, 28),
+        Accent = Color3.fromRGB(192, 132, 252),
+        AccentGradient = Color3.fromRGB(168, 85, 247),
+        Text = Color3.fromRGB(250, 245, 255),
+        TextSecondary = Color3.fromRGB(130, 115, 155),
+        Border = Color3.fromRGB(192, 132, 252),
         BorderTrans = 0.9,
         Trans = 0.05
-    },
-    Midnight = {
-        Main = Color3.fromRGB(8, 10, 18),
-        Sidebar = Color3.fromRGB(4, 5, 10),
-        Card = Color3.fromRGB(16, 18, 30),
-        Accent = Color3.fromRGB(56, 189, 248),
-        Text = Color3.fromRGB(230, 240, 255),
-        TextSecondary = Color3.fromRGB(120, 130, 150),
-        Border = Color3.fromRGB(56, 189, 248),
-        BorderTrans = 0.85,
-        Trans = 0.05
-    },
-    Bloodmoon = {
-        Main = Color3.fromRGB(24, 12, 14),
-        Sidebar = Color3.fromRGB(16, 8, 9),
-        Card = Color3.fromRGB(36, 18, 20),
-        Accent = Color3.fromRGB(220, 38, 38),
-        Text = Color3.fromRGB(255, 240, 240),
-        TextSecondary = Color3.fromRGB(180, 130, 130),
-        Border = Color3.fromRGB(220, 38, 38),
-        BorderTrans = 0.85,
-        Trans = 0.1
     }
 }
 
 local Theme = {}
-for k, v in pairs(ThemePresets.Dark) do Theme[k] = v end
+for k, v in pairs(ThemePresets.PurpleDark) do Theme[k] = v end
 
--- 安全的文件操作封装(不同执行器环境可能不支持)
+-- 安全的文件读写
 local function SafeWriteFile(name, content)
     if writefile then
         local ok = pcall(writefile, name, content)
@@ -79,7 +72,7 @@ local function SafeReadFile(name)
     return nil
 end
 
--- 修复: 改进的拖拽函数，避免事件泄漏
+-- 改进的拖拽响应函数
 local function MakeDraggable(dragPart, mainPart)
     local dragging = false
     local dragStart = nil
@@ -96,7 +89,7 @@ local function MakeDraggable(dragPart, mainPart)
 
     connections.InputChanged = UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            if dragStart then
+            if dragStart and startPos then
                 local delta = input.Position - dragStart
                 mainPart.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
@@ -111,7 +104,6 @@ local function MakeDraggable(dragPart, mainPart)
         end
     end)
 
-    -- 返回销毁函数以便清理资源
     return function()
         for _, conn in pairs(connections) do
             pcall(function() conn:Disconnect() end)
@@ -119,28 +111,37 @@ local function MakeDraggable(dragPart, mainPart)
     end
 end
 
-function zhiUI:Notify(title, desc, duration)
-    local NotifyGui = Parent:FindFirstChild("zhiUI_Notify")
+-- 通知系统
+function vsUI:Notify(title, desc, duration)
+    local NotifyGui = Parent:FindFirstChild("vsUI_Notify")
     if not NotifyGui then
         NotifyGui = Instance.new("ScreenGui", Parent)
-        NotifyGui.Name = "zhiUI_Notify"
+        NotifyGui.Name = "vsUI_Notify"
         NotifyGui.ResetOnSpawn = false
         local Layout = Instance.new("UIListLayout", NotifyGui)
         Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
         Layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
         Layout.Padding = UDim.new(0, 10)
+        
+        local Pad = Instance.new("UIPadding", NotifyGui)
+        Pad.PaddingBottom = UDim.new(0, 20)
+        Pad.PaddingRight = UDim.new(0, 20)
     end
 
     local Notif = Instance.new("Frame", NotifyGui)
-    Notif.Size = UDim2.fromOffset(220, 0)
+    Notif.Size = UDim2.fromOffset(230, 0)
     Notif.BackgroundColor3 = Theme.Main
     Notif.BackgroundTransparency = 0.1
     Notif.ClipsDescendants = true
     Instance.new("UICorner", Notif).CornerRadius = UDim.new(0, 8)
 
+    local Stroke = Instance.new("UIStroke", Notif)
+    Stroke.Color = Theme.Accent
+    Stroke.Transparency = 0.5
+
     local T = Instance.new("TextLabel", Notif)
     T.Size = UDim2.new(1, -20, 0, 22)
-    T.Position = UDim2.fromOffset(10, 5)
+    T.Position = UDim2.fromOffset(10, 6)
     T.Text = title or "通知"
     T.TextColor3 = Theme.Accent
     T.Font = Enum.Font.GothamBold
@@ -149,8 +150,8 @@ function zhiUI:Notify(title, desc, duration)
     T.TextXAlignment = Enum.TextXAlignment.Left
 
     local D = Instance.new("TextLabel", Notif)
-    D.Size = UDim2.new(1, -20, 0, 25)
-    D.Position = UDim2.fromOffset(10, 25)
+    D.Size = UDim2.new(1, -20, 0, 26)
+    D.Position = UDim2.fromOffset(10, 26)
     D.Text = desc or ""
     D.TextColor3 = Theme.Text
     D.Font = Enum.Font.Gotham
@@ -159,35 +160,38 @@ function zhiUI:Notify(title, desc, duration)
     D.TextXAlignment = Enum.TextXAlignment.Left
     D.TextWrapped = true
 
-    TweenService:Create(Notif, TweenInfo.new(0.3), {Size = UDim2.fromOffset(220, 55)}):Play()
+    TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(230, 60)}):Play()
     task.delay(duration or 3, function()
-        TweenService:Create(Notif, TweenInfo.new(0.3), {Size = UDim2.fromOffset(220, 0)}):Play()
-        task.wait(0.3)
-        pcall(function() Notif:Destroy() end)
+        if Notif and Notif.Parent then
+            local tw = TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.fromOffset(230, 0)})
+            tw:Play()
+            tw.Completed:Connect(function() Notif:Destroy() end)
+        end
     end)
 end
 
--- 通用 Tooltip(全局单例，任意元素可复用)
-local ActiveTooltip = nil
+-- BindTooltip
 local function BindTooltip(element, text, parentGui)
     if not text or text == "" then return end
     local tip
     element.MouseEnter:Connect(function()
         if tip then tip:Destroy() end
         tip = Instance.new("TextLabel")
-        tip.Name = "zhiUI_Tooltip"
+        tip.Name = "vsUI_Tooltip"
         tip.Parent = parentGui
         tip.AutomaticSize = Enum.AutomaticSize.X
         tip.Size = UDim2.fromOffset(0, 22)
-        tip.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+        tip.BackgroundColor3 = Theme.Sidebar
         tip.BackgroundTransparency = 0.1
-        tip.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tip.TextColor3 = Theme.Text
         tip.Font = Enum.Font.Gotham
         tip.TextSize = 11
         tip.Text = "  " .. text .. "  "
-        tip.ZIndex = 100
+        tip.ZIndex = 500
         Instance.new("UICorner", tip).CornerRadius = UDim.new(0, 4)
-        ActiveTooltip = tip
+        local st = Instance.new("UIStroke", tip)
+        st.Color = Theme.Accent
+        st.Transparency = 0.6
     end)
     element.MouseMoved:Connect(function(x, y)
         if tip then
@@ -199,8 +203,8 @@ local function BindTooltip(element, text, parentGui)
     end)
 end
 
--- 通用右键菜单：items = {{Text = "...", Callback = fn}, ...}
-function zhiUI:BindContextMenu(element, items, parentGui)
+-- ContextMenu 右键菜单
+function vsUI:BindContextMenu(element, items, parentGui)
     local menu
     local function CloseMenu()
         if menu then menu:Destroy(); menu = nil end
@@ -210,13 +214,17 @@ function zhiUI:BindContextMenu(element, items, parentGui)
             CloseMenu()
             local mousePos = UserInputService:GetMouseLocation()
             menu = Instance.new("Frame")
-            menu.Name = "zhiUI_ContextMenu"
+            menu.Name = "vsUI_ContextMenu"
             menu.Parent = parentGui
             menu.Position = UDim2.fromOffset(mousePos.X, mousePos.Y)
             menu.Size = UDim2.fromOffset(140, #items * 26)
-            menu.BackgroundColor3 = Color3.fromRGB(20, 24, 38)
-            menu.ZIndex = 200
+            menu.BackgroundColor3 = Theme.Sidebar
+            menu.ZIndex = 600
             Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 6)
+            local st = Instance.new("UIStroke", menu)
+            st.Color = Theme.Accent
+            st.Transparency = 0.5
+
             local layout = Instance.new("UIListLayout", menu)
             layout.SortOrder = Enum.SortOrder.LayoutOrder
 
@@ -225,11 +233,11 @@ function zhiUI:BindContextMenu(element, items, parentGui)
                 opt.Size = UDim2.new(1, 0, 0, 26)
                 opt.BackgroundTransparency = 1
                 opt.Text = "  " .. (item.Text or "")
-                opt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                opt.TextColor3 = Theme.Text
                 opt.Font = Enum.Font.Gotham
                 opt.TextSize = 12
                 opt.TextXAlignment = Enum.TextXAlignment.Left
-                opt.ZIndex = 201
+                opt.ZIndex = 601
                 opt.MouseButton1Click:Connect(function()
                     CloseMenu()
                     pcall(function() (item.Callback or function() end)() end)
@@ -249,9 +257,9 @@ function zhiUI:BindContextMenu(element, items, parentGui)
     end)
 end
 
-function zhiUI:CreateWindow(config)
-    local Lib = { CurrentTab = nil, Tabs = {}, TabButtons = {}, Connections = {}, Flags = {}, FlagObjects = {}, ConfigName = (type(config) == "table" and config.ConfigName) or "zhiUI_config" }
-    local TitleText = (type(config) == "table" and config.Title) or (type(config) == "string" and config) or "zhiUI 控制面板"
+function vsUI:CreateWindow(config)
+    local Lib = { CurrentTab = nil, Tabs = {}, TabButtons = {}, Connections = {}, Flags = {}, FlagObjects = {}, ConfigName = (type(config) == "table" and config.ConfigName) or "vsUI_config" }
+    local TitleText = (type(config) == "table" and config.Title) or (type(config) == "string" and config) or "vsUI 控制面板"
 
     if type(config) == "table" and config.Theme then
         local preset = ThemePresets[config.Theme]
@@ -259,7 +267,7 @@ function zhiUI:CreateWindow(config)
     end
 
     local ScreenGui = Instance.new("ScreenGui", Parent)
-    ScreenGui.Name = "zhiUI_" .. math.random(1000, 9999)
+    ScreenGui.Name = "vsUI_" .. math.random(1000, 9999)
     ScreenGui.ResetOnSpawn = false
     Lib.ScreenGui = ScreenGui
 
@@ -278,18 +286,18 @@ function zhiUI:CreateWindow(config)
     table.insert(Lib.Connections, workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ScaleAdjust))
 
     local Main = Instance.new("Frame", ScreenGui)
-    Main.Size = UDim2.fromOffset(520, 310)
+    Main.Size = UDim2.fromOffset(540, 330)
     Main.Position = UDim2.fromScale(0.5, 0.45)
     Main.AnchorPoint = Vector2.new(0.5, 0.5)
     Main.BackgroundColor3 = Theme.Main
     Main.BackgroundTransparency = Theme.Trans
     Main.ClipsDescendants = true
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
-    
+
     local MainStroke = Instance.new("UIStroke", Main)
     MainStroke.Color = Theme.Border
     MainStroke.Transparency = Theme.BorderTrans
-    
+
     local dragCleaner = MakeDraggable(Main, Main)
     table.insert(Lib.Connections, {Disconnect = dragCleaner})
     Lib.Main = Main
@@ -309,13 +317,11 @@ function zhiUI:CreateWindow(config)
     TitleLabel.TextSize = 13
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- 红/黄/绿 三个圆点：红=删除(销毁)，黄=隐藏(不销毁，可用快捷键唤出)，绿=最小化(收起/还原)
     local ToggleKey = (type(config) == "table" and config.ToggleKey) or Enum.KeyCode.RightControl
     local Colors = {Color3.fromRGB(255, 95, 87), Color3.fromRGB(255, 189, 46), Color3.fromRGB(40, 201, 64)}
     local minimized = false
     local BodyHeightBeforeMin = Main.Size
 
-    -- 全局快捷键：即使窗口被隐藏(Main.Visible = false)也能监听到，用于唤出
     table.insert(Lib.Connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == ToggleKey then
             Main.Visible = not Main.Visible
@@ -332,19 +338,12 @@ function zhiUI:CreateWindow(config)
         Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
 
         if i == 1 then
-            -- 红点：删除(销毁整个窗口，不可恢复)
-            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
-                Lib:Destroy()
-            end))
-            BindTooltip(b, "删除", ScreenGui)
+            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function() Lib:Destroy() end))
+            BindTooltip(b, "关闭/销毁", ScreenGui)
         elseif i == 2 then
-            -- 黄点：隐藏(不销毁，按快捷键或再次点击唤出)
-            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
-                Main.Visible = false
-            end))
+            table.insert(Lib.Connections, b.MouseButton1Click:Connect(function() Main.Visible = false end))
             BindTooltip(b, "隐藏 (按 " .. ToggleKey.Name .. " 唤出)", ScreenGui)
         else
-            -- 绿点：最小化(收起成只剩标题栏，再点还原)
             table.insert(Lib.Connections, b.MouseButton1Click:Connect(function()
                 minimized = not minimized
                 if minimized then
@@ -360,26 +359,26 @@ function zhiUI:CreateWindow(config)
 
     -- 侧边栏
     local Sidebar = Instance.new("Frame", Main)
-    Sidebar.Size = UDim2.new(0, 120, 1, -36)
+    Sidebar.Size = UDim2.new(0, 130, 1, -36)
     Sidebar.Position = UDim2.fromOffset(0, 36)
     Sidebar.BackgroundColor3 = Theme.Sidebar
     Sidebar.BackgroundTransparency = 0.2
-    
+
     local SideLayout = Instance.new("UIListLayout", Sidebar)
-    SideLayout.Padding = UDim.new(0, 6)
+    SideLayout.Padding = UDim.new(0, 5)
     SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
     local SidePadding = Instance.new("UIPadding", Sidebar)
     SidePadding.PaddingTop = UDim.new(0, 8)
 
-    -- 搜索框：按名称过滤当前显示 Tab 内的元素
+    -- 搜索框
     local SearchBox = Instance.new("TextBox", Sidebar)
     SearchBox.Size = UDim2.new(0.88, 0, 0, 26)
     SearchBox.LayoutOrder = -1
     SearchBox.BackgroundColor3 = Theme.Card
     SearchBox.BackgroundTransparency = 0.2
-    SearchBox.PlaceholderText = "搜索..."
+    SearchBox.PlaceholderText = "搜索功能..."
     SearchBox.Text = ""
     SearchBox.TextColor3 = Theme.Text
     SearchBox.PlaceholderColor3 = Theme.TextSecondary
@@ -390,7 +389,6 @@ function zhiUI:CreateWindow(config)
     local SearchPad = Instance.new("UIPadding", SearchBox)
     SearchPad.PaddingLeft = UDim.new(0, 8)
 
-    -- 全局元素登记表，供搜索过滤使用：{Instance = frame, Text = 显示文本, Page = 所属Tab页}
     Lib.SearchableElements = {}
     table.insert(Lib.Connections, SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
         local q = SearchBox.Text:lower()
@@ -405,17 +403,16 @@ function zhiUI:CreateWindow(config)
         end
     end))
 
-    -- 内容主容器
+    -- 主内容区
     local Container = Instance.new("Frame", Main)
-    Container.Size = UDim2.new(1, -130, 1, -44)
-    Container.Position = UDim2.fromOffset(125, 40)
+    Container.Size = UDim2.new(1, -140, 1, -44)
+    Container.Position = UDim2.fromOffset(135, 40)
     Container.BackgroundTransparency = 1
 
     function Lib:RegisterSearchable(frame, text, page)
         table.insert(Lib.SearchableElements, {Instance = frame, Text = text or "", Page = page})
     end
 
-    -- 主题切换：applies 到已创建的全部元素上（通过重新着色已知的关键 Frame）
     function Lib:SetTheme(nameOrTable)
         local t = type(nameOrTable) == "table" and nameOrTable or ThemePresets[nameOrTable]
         if not t then return end
@@ -429,50 +426,31 @@ function zhiUI:CreateWindow(config)
         SearchBox.TextColor3 = Theme.Text
         SearchBox.PlaceholderColor3 = Theme.TextSecondary
         for _, btn in pairs(Lib.TabButtons) do
-            btn.TextColor3 = (btn.BackgroundTransparency == 0.5) and Theme.Text or Theme.TextSecondary
-        end
-        -- 遍历所有已注册控件重新着色（卡片背景 + 文本）
-        for _, entry in ipairs(Lib.SearchableElements) do
-            pcall(function()
-                if entry.Instance:IsA("Frame") or entry.Instance:IsA("TextButton") then
-                    entry.Instance.BackgroundColor3 = Theme.Card
-                end
-                for _, child in ipairs(entry.Instance:GetDescendants()) do
-                    if child:IsA("TextLabel") or child:IsA("TextButton") then
-                        if child.TextColor3 == Color3.fromRGB(148,163,184) then
-                            child.TextColor3 = Theme.TextSecondary
-                        else
-                            child.TextColor3 = Theme.Text
-                        end
-                    end
-                end
-            end)
+            btn.TextColor3 = (btn.BackgroundTransparency == 0.4) and Theme.Text or Theme.TextSecondary
         end
     end
 
-    -- 配置保存：把 Flags 表序列化写入文件(HttpService JSONEncode)
     function Lib:SaveConfig(fileName)
         local HttpService = game:GetService("HttpService")
         local ok, encoded = pcall(function() return HttpService:JSONEncode(Lib.Flags) end)
         if ok then
             local success = SafeWriteFile((fileName or Lib.ConfigName) .. ".json", encoded)
-            zhiUI:Notify("配置", success and "保存成功" or "保存失败：当前环境不支持写文件", 3)
+            vsUI:Notify("配置保存", success and "成功导出配置文件" or "保存失败：环境不支持", 3)
             return success
         end
         return false
     end
 
-    -- 配置读取：读取文件并把值应用回每个已注册的 Flag 控件
     function Lib:LoadConfig(fileName)
         local raw = SafeReadFile((fileName or Lib.ConfigName) .. ".json")
         if not raw then
-            zhiUI:Notify("配置", "未找到配置文件或当前环境不支持读文件", 3)
+            vsUI:Notify("配置读取", "未找到指定配置文件", 3)
             return false
         end
         local HttpService = game:GetService("HttpService")
         local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
         if not ok or type(data) ~= "table" then
-            zhiUI:Notify("配置", "配置文件解析失败", 3)
+            vsUI:Notify("配置读取", "解析文件失败", 3)
             return false
         end
         for flag, value in pairs(data) do
@@ -482,7 +460,7 @@ function zhiUI:CreateWindow(config)
                 pcall(function() obj.Set(value) end)
             end
         end
-        zhiUI:Notify("配置", "加载成功", 3)
+        vsUI:Notify("配置读取", "成功加载配置", 3)
         return true
     end
 
@@ -490,21 +468,19 @@ function zhiUI:CreateWindow(config)
         local name = type(tabConfig) == "table" and tabConfig.Name or tostring(tabConfig)
         local Elements = {}
 
-        -- 修复: 改进的选项卡按钮
         local TabBtn = Instance.new("TextButton", Sidebar)
-        TabBtn.Size = UDim2.new(0.88, 0, 0, 32)
+        TabBtn.Size = UDim2.new(0.88, 0, 0, 30)
         TabBtn.BackgroundColor3 = Theme.Card
         TabBtn.BackgroundTransparency = 1
         TabBtn.Text = name
         TabBtn.TextColor3 = Theme.TextSecondary
         TabBtn.Font = Enum.Font.GothamBold
-        TabBtn.TextSize = 12
+        TabBtn.TextSize = 11
         TabBtn.AutoButtonColor = false
         Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
 
         table.insert(Lib.TabButtons, TabBtn)
 
-        -- 页面容器 - 修复: 使用 CanvasSize 而不是 AutomaticCanvasSize
         local Page = Instance.new("ScrollingFrame", Container)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
@@ -512,14 +488,13 @@ function zhiUI:CreateWindow(config)
         Page.ScrollBarThickness = 3
         Page.ScrollBarImageColor3 = Theme.Accent
         Page.CanvasSize = UDim2.new(0, 0, 0, 0)
-        
+
         local PageLayout = Instance.new("UIListLayout", Page)
         PageLayout.Padding = UDim.new(0, 6)
         PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        
-        -- 修复: 监听布局变化自动调整 CanvasSize
+
         table.insert(Lib.Connections, PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y)
+            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
         end))
 
         table.insert(Lib.Connections, TabBtn.MouseButton1Click:Connect(function()
@@ -532,32 +507,75 @@ function zhiUI:CreateWindow(config)
             end
             Page.Visible = true
             TabBtn.TextColor3 = Theme.Text
-            TabBtn.BackgroundTransparency = 0.5
+            TabBtn.BackgroundTransparency = 0.4
         end))
 
         if not Lib.CurrentTab then 
             Lib.CurrentTab = Page
             Page.Visible = true
             TabBtn.TextColor3 = Theme.Text 
-            TabBtn.BackgroundTransparency = 0.5
+            TabBtn.BackgroundTransparency = 0.4
         end
 
-        -- 添加 Button
+        -- Section 分割标题
+        function Elements:AddSection(title)
+            local SecFrame = Instance.new("Frame", Page)
+            SecFrame.Size = UDim2.new(0.96, 0, 0, 22)
+            SecFrame.BackgroundTransparency = 1
+
+            local L = Instance.new("TextLabel", SecFrame)
+            L.Size = UDim2.new(1, 0, 1, 0)
+            L.BackgroundTransparency = 1
+            L.Text = title or "SECTION"
+            L.TextColor3 = Theme.Accent
+            L.Font = Enum.Font.GothamBold
+            L.TextSize = 11
+            L.TextXAlignment = Enum.TextXAlignment.Left
+
+            Lib:RegisterSearchable(SecFrame, title, Page)
+            return Elements
+        end
+
+        -- Label 静态/动态标签
+        function Elements:AddLabel(text)
+            local LFrame = Instance.new("Frame", Page)
+            LFrame.Size = UDim2.new(0.96, 0, 0, 26)
+            LFrame.BackgroundColor3 = Theme.Card
+            LFrame.BackgroundTransparency = 0.4
+            Instance.new("UICorner", LFrame).CornerRadius = UDim.new(0, 6)
+
+            local L = Instance.new("TextLabel", LFrame)
+            L.Size = UDim2.new(1, -20, 1, 0)
+            L.Position = UDim2.fromOffset(10, 0)
+            L.BackgroundTransparency = 1
+            L.Text = text or ""
+            L.TextColor3 = Theme.TextSecondary
+            L.Font = Enum.Font.Gotham
+            L.TextSize = 11
+            L.TextXAlignment = Enum.TextXAlignment.Left
+
+            Lib:RegisterSearchable(LFrame, text, Page)
+            return {
+                Set = function(newText) L.Text = newText end
+            }
+        end
+
+        -- Button
         function Elements:AddButton(cfg)
             local text = type(cfg) == "table" and (cfg.Text or cfg.Name) or tostring(cfg)
             local callback = type(cfg) == "table" and cfg.Callback or function() end
 
             local Btn = Instance.new("TextButton", Page)
-            Btn.Size = UDim2.new(0.96, 0, 0, 34)
+            Btn.Size = UDim2.new(0.96, 0, 0, 32)
             Btn.BackgroundColor3 = Theme.Card
             Btn.BackgroundTransparency = 0.2
             Btn.Text = text
             Btn.TextColor3 = Theme.Text
             Btn.Font = Enum.Font.GothamBold
-            Btn.TextSize = 12
+            Btn.TextSize = 11
             Btn.AutoButtonColor = true
             Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-            
+
             local stroke = Instance.new("UIStroke", Btn)
             stroke.Color = Theme.Border
             stroke.Transparency = Theme.BorderTrans
@@ -567,23 +585,19 @@ function zhiUI:CreateWindow(config)
             end))
 
             Lib:RegisterSearchable(Btn, text, Page)
-            if type(cfg) == "table" and cfg.Tooltip then
-                BindTooltip(Btn, cfg.Tooltip, ScreenGui)
-            end
-            if type(cfg) == "table" and cfg.ContextMenu then
-                zhiUI:BindContextMenu(Btn, cfg.ContextMenu, ScreenGui)
-            end
+            if type(cfg) == "table" and cfg.Tooltip then BindTooltip(Btn, cfg.Tooltip, ScreenGui) end
+            if type(cfg) == "table" and cfg.ContextMenu then vsUI:BindContextMenu(Btn, cfg.ContextMenu, ScreenGui) end
             return Elements
         end
 
-        -- 添加 Toggle
+        -- Toggle
         function Elements:AddToggle(cfg)
             local text = type(cfg) == "table" and (cfg.Text or cfg.Name) or tostring(cfg)
             local state = type(cfg) == "table" and (cfg.Default or cfg.State) or false
             local callback = type(cfg) == "table" and cfg.Callback or function() end
 
             local TFrame = Instance.new("Frame", Page)
-            TFrame.Size = UDim2.new(0.96, 0, 0, 34)
+            TFrame.Size = UDim2.new(0.96, 0, 0, 32)
             TFrame.BackgroundColor3 = Theme.Card
             TFrame.BackgroundTransparency = 0.2
             Instance.new("UICorner", TFrame).CornerRadius = UDim.new(0, 6)
@@ -601,7 +615,7 @@ function zhiUI:CreateWindow(config)
             local S = Instance.new("TextButton", TFrame)
             S.Size = UDim2.fromOffset(34, 18)
             S.Position = UDim2.new(1, -42, 0.5, -9)
-            S.BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(50, 60, 80)
+            S.BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(45, 35, 65)
             S.Text = ""
             S.AutoButtonColor = false
             Instance.new("UICorner", S).CornerRadius = UDim.new(1, 0)
@@ -612,35 +626,31 @@ function zhiUI:CreateWindow(config)
             D.BackgroundColor3 = Theme.Text
             Instance.new("UICorner", D).CornerRadius = UDim.new(1, 0)
 
-            table.insert(Lib.Connections, S.MouseButton1Click:Connect(function()
-                state = not state
+            local function UpdateState(val)
+                state = val
                 TweenService:Create(D, TweenInfo.new(0.15), {Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)}):Play()
-                TweenService:Create(S, TweenInfo.new(0.15), {BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(50, 60, 80)}):Play()
-                if type(cfg) == "table" and cfg.Flag then
-                    Lib.Flags[cfg.Flag] = state
-                end
+                TweenService:Create(S, TweenInfo.new(0.15), {BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(45, 35, 65)}):Play()
+                if type(cfg) == "table" and cfg.Flag then Lib.Flags[cfg.Flag] = state end
                 pcall(function() callback(state) end)
+            end
+
+            table.insert(Lib.Connections, S.MouseButton1Click:Connect(function()
+                UpdateState(not state)
             end))
 
             Lib:RegisterSearchable(TFrame, text, Page)
-            if type(cfg) == "table" and cfg.Tooltip then
-                BindTooltip(L, cfg.Tooltip, ScreenGui)
-            end
+            if type(cfg) == "table" and cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
             if type(cfg) == "table" and cfg.Flag then
                 Lib.Flags[cfg.Flag] = state
                 Lib.FlagObjects[cfg.Flag] = {
                     Get = function() return state end,
-                    Set = function(v)
-                        state = v
-                        TweenService:Create(D, TweenInfo.new(0.15), {Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)}):Play()
-                        TweenService:Create(S, TweenInfo.new(0.15), {BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(50, 60, 80)}):Play()
-                    end
+                    Set = function(v) UpdateState(v) end
                 }
             end
             return Elements
         end
 
-        -- 添加 Slider - 修复: 改进事件处理
+        -- Slider
         function Elements:AddSlider(cfg)
             local text = cfg.Text or cfg.Name or "Slider"
             local min = cfg.Min or 0
@@ -677,7 +687,7 @@ function zhiUI:CreateWindow(config)
             local Bar = Instance.new("Frame", SFrame)
             Bar.Size = UDim2.new(0.92, 0, 0, 4)
             Bar.Position = UDim2.new(0.04, 0, 0, 27)
-            Bar.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
+            Bar.BackgroundColor3 = Color3.fromRGB(45, 35, 65)
             Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
 
             local Fill = Instance.new("Frame", Bar)
@@ -698,13 +708,6 @@ function zhiUI:CreateWindow(config)
                 if cfg.Flag then Lib.Flags[cfg.Flag] = val end
                 pcall(function() callback(val) end)
             end
-            local function SetVal(val)
-                val = math.clamp(val, min, max)
-                currentVal = val
-                local p = (val - min) / (max - min)
-                Fill.Size = UDim2.fromScale(p, 1)
-                ValL.Text = tostring(math.floor(val))
-            end
 
             table.insert(Lib.Connections, SFrame.InputBegan:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -712,13 +715,13 @@ function zhiUI:CreateWindow(config)
                     Update(i)
                 end
             end))
-            
+
             table.insert(Lib.Connections, UserInputService.InputChanged:Connect(function(i)
                 if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
                     Update(i)
                 end
             end))
-            
+
             table.insert(Lib.Connections, UserInputService.InputEnded:Connect(function(i)
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
                     dragging = false
@@ -731,55 +734,58 @@ function zhiUI:CreateWindow(config)
                 Lib.Flags[cfg.Flag] = default
                 Lib.FlagObjects[cfg.Flag] = {
                     Get = function() return currentVal end,
-                    Set = function(v) SetVal(v) end
+                    Set = function(v)
+                        v = math.clamp(v, min, max)
+                        currentVal = v
+                        Fill.Size = UDim2.fromScale((v - min) / (max - min), 1)
+                        ValL.Text = tostring(math.floor(v))
+                    end
                 }
             end
             return Elements
         end
 
-        -- 添加 Dropdown - 修复: 防止超出边界
+        -- Dropdown
         function Elements:AddDropdown(cfg)
             local list = cfg.Options or cfg.List or {}
             local callback = cfg.Callback or function() end
 
             local DFrame = Instance.new("Frame", Page)
-            DFrame.Size = UDim2.new(0.96, 0, 0, 34)
+            DFrame.Size = UDim2.new(0.96, 0, 0, 32)
             DFrame.BackgroundColor3 = Theme.Card
             DFrame.BackgroundTransparency = 0.2
-            DFrame.ClipsDescendants = false
-            DFrame.ZIndex = 10
+            DFrame.ZIndex = 20
             Instance.new("UICorner", DFrame).CornerRadius = UDim.new(0, 6)
 
             local Btn = Instance.new("TextButton", DFrame)
-            Btn.Size = UDim2.new(1, 0, 0, 34)
+            Btn.Size = UDim2.new(1, 0, 0, 32)
             Btn.BackgroundTransparency = 1
-            Btn.Text = "  " .. (cfg.Text or cfg.Name or "Dropdown") .. " : ..."
+            Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(cfg.Default or "请选择")
             Btn.TextColor3 = Theme.Text
             Btn.Font = Enum.Font.GothamMedium
             Btn.TextSize = 11
             Btn.TextXAlignment = Enum.TextXAlignment.Left
-            Btn.AutoButtonColor = false
 
             local DropContainer = Instance.new("Frame", DFrame)
             DropContainer.Size = UDim2.new(1, 0, 0, 0)
             DropContainer.Position = UDim2.fromOffset(0, 34)
             DropContainer.BackgroundColor3 = Theme.Card
-            DropContainer.BackgroundTransparency = 0.2
+            DropContainer.BackgroundTransparency = 0.1
             DropContainer.ClipsDescendants = true
-            DropContainer.ZIndex = 11
+            DropContainer.ZIndex = 25
             Instance.new("UICorner", DropContainer).CornerRadius = UDim.new(0, 6)
-            
+
             local DropLayout = Instance.new("UIListLayout", DropContainer)
             DropLayout.Padding = UDim.new(0, 0)
 
             local dropped = false
             table.insert(Lib.Connections, Btn.MouseButton1Click:Connect(function()
                 dropped = not dropped
-                local targetSize = dropped and UDim2.new(1, 0, 0, math.min(#list * 26, 150)) or UDim2.new(1, 0, 0, 0)
+                local targetSize = dropped and UDim2.new(1, 0, 0, math.min(#list * 26, 130)) or UDim2.new(1, 0, 0, 0)
                 TweenService:Create(DropContainer, TweenInfo.new(0.2), {Size = targetSize}):Play()
             end))
 
-            for idx, v in pairs(list) do
+            for _, v in pairs(list) do
                 local opt = Instance.new("TextButton", DropContainer)
                 opt.Size = UDim2.new(1, 0, 0, 26)
                 opt.BackgroundColor3 = Theme.Card
@@ -789,17 +795,9 @@ function zhiUI:CreateWindow(config)
                 opt.Font = Enum.Font.Gotham
                 opt.TextSize = 11
                 opt.TextXAlignment = Enum.TextXAlignment.Left
-                opt.AutoButtonColor = false
-                
-                table.insert(Lib.Connections, opt.MouseEnter:Connect(function()
-                    opt.BackgroundTransparency = 0.3
-                end))
-                table.insert(Lib.Connections, opt.MouseLeave:Connect(function()
-                    opt.BackgroundTransparency = 0.5
-                end))
-                
+
                 table.insert(Lib.Connections, opt.MouseButton1Click:Connect(function()
-                    Btn.Text = "  " .. (cfg.Text or cfg.Name or "Dropdown") .. " : " .. tostring(v)
+                    Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(v)
                     dropped = false
                     TweenService:Create(DropContainer, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 0)}):Play()
                     if cfg.Flag then Lib.Flags[cfg.Flag] = v end
@@ -807,105 +805,25 @@ function zhiUI:CreateWindow(config)
                 end))
             end
 
-            Lib:RegisterSearchable(DFrame, cfg.Text or cfg.Name or "Dropdown", Page)
+            Lib:RegisterSearchable(DFrame, cfg.Text or cfg.Name or "下拉框", Page)
             if cfg.Tooltip then BindTooltip(Btn, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
                 Lib.Flags[cfg.Flag] = cfg.Default
                 Lib.FlagObjects[cfg.Flag] = {
-                    Get = function() return cfg.Default end,
+                    Get = function() return Lib.Flags[cfg.Flag] end,
                     Set = function(v)
-                        Btn.Text = "  " .. (cfg.Text or cfg.Name or "Dropdown") .. " : " .. tostring(v)
+                        Btn.Text = "  " .. (cfg.Text or cfg.Name or "下拉框") .. " : " .. tostring(v)
                     end
                 }
             end
             return Elements
         end
 
-        -- 添加多选 Dropdown：勾选多项，Flag 存的是 {选项 = true/false} 的表
-        function Elements:AddMultiDropdown(cfg)
-            local list = cfg.Options or cfg.List or {}
-            local callback = cfg.Callback or function() end
-            local selected = {}
-            if cfg.Default then
-                for _, v in ipairs(cfg.Default) do selected[v] = true end
-            end
-
-            local DFrame = Instance.new("Frame", Page)
-            DFrame.Size = UDim2.new(0.96, 0, 0, 34)
-            DFrame.BackgroundColor3 = Theme.Card
-            DFrame.BackgroundTransparency = 0.2
-            DFrame.ClipsDescendants = false
-            DFrame.ZIndex = 10
-            Instance.new("UICorner", DFrame).CornerRadius = UDim.new(0, 6)
-
-            local function CountText()
-                local n = 0
-                for _, v in pairs(selected) do if v then n += 1 end end
-                return n .. " 项已选"
-            end
-
-            local Btn = Instance.new("TextButton", DFrame)
-            Btn.Size = UDim2.new(1, 0, 0, 34)
-            Btn.BackgroundTransparency = 1
-            Btn.Text = "  " .. (cfg.Text or cfg.Name or "多选") .. " : " .. CountText()
-            Btn.TextColor3 = Theme.Text
-            Btn.Font = Enum.Font.GothamMedium
-            Btn.TextSize = 11
-            Btn.TextXAlignment = Enum.TextXAlignment.Left
-            Btn.AutoButtonColor = false
-
-            local DropContainer = Instance.new("Frame", DFrame)
-            DropContainer.Size = UDim2.new(1, 0, 0, 0)
-            DropContainer.Position = UDim2.fromOffset(0, 34)
-            DropContainer.BackgroundColor3 = Theme.Card
-            DropContainer.BackgroundTransparency = 0.2
-            DropContainer.ClipsDescendants = true
-            DropContainer.ZIndex = 11
-            Instance.new("UICorner", DropContainer).CornerRadius = UDim.new(0, 6)
-
-            local DropLayout = Instance.new("UIListLayout", DropContainer)
-            DropLayout.Padding = UDim.new(0, 0)
-
-            local dropped = false
-            table.insert(Lib.Connections, Btn.MouseButton1Click:Connect(function()
-                dropped = not dropped
-                local targetSize = dropped and UDim2.new(1, 0, 0, math.min(#list * 26, 150)) or UDim2.new(1, 0, 0, 0)
-                TweenService:Create(DropContainer, TweenInfo.new(0.2), {Size = targetSize}):Play()
-            end))
-
-            for _, v in pairs(list) do
-                local opt = Instance.new("TextButton", DropContainer)
-                opt.Size = UDim2.new(1, 0, 0, 26)
-                opt.BackgroundColor3 = Theme.Card
-                opt.BackgroundTransparency = 0.5
-                opt.Text = (selected[v] and "  ✓ " or "     ") .. tostring(v)
-                opt.TextColor3 = selected[v] and Theme.Accent or Theme.TextSecondary
-                opt.Font = Enum.Font.Gotham
-                opt.TextSize = 11
-                opt.TextXAlignment = Enum.TextXAlignment.Left
-                opt.AutoButtonColor = false
-
-                table.insert(Lib.Connections, opt.MouseButton1Click:Connect(function()
-                    selected[v] = not selected[v]
-                    opt.Text = (selected[v] and "  ✓ " or "     ") .. tostring(v)
-                    opt.TextColor3 = selected[v] and Theme.Accent or Theme.TextSecondary
-                    Btn.Text = "  " .. (cfg.Text or cfg.Name or "多选") .. " : " .. CountText()
-                    if cfg.Flag then Lib.Flags[cfg.Flag] = selected end
-                    pcall(function() callback(selected) end)
-                end))
-            end
-
-            Lib:RegisterSearchable(DFrame, cfg.Text or cfg.Name or "多选", Page)
-            if cfg.Tooltip then BindTooltip(Btn, cfg.Tooltip, ScreenGui) end
-            if cfg.Flag then Lib.Flags[cfg.Flag] = selected end
-            return Elements
-        end
-
-        -- 添加 Input(cfg.Numeric = true 时只允许数字，可配合 Min/Max 自动 clamp)
+        -- Input
         function Elements:AddInput(cfg)
             local callback = cfg.Callback or function() end
             local IFrame = Instance.new("Frame", Page)
-            IFrame.Size = UDim2.new(0.96, 0, 0, 34)
+            IFrame.Size = UDim2.new(0.96, 0, 0, 32)
             IFrame.BackgroundColor3 = Theme.Card
             IFrame.BackgroundTransparency = 0.2
             Instance.new("UICorner", IFrame).CornerRadius = UDim.new(0, 6)
@@ -914,7 +832,7 @@ function zhiUI:CreateWindow(config)
             L.Size = UDim2.new(0.4, 0, 1, 0)
             L.Position = UDim2.fromOffset(10, 0)
             L.BackgroundTransparency = 1
-            L.Text = cfg.Text or cfg.Name or "Input"
+            L.Text = cfg.Text or cfg.Name or "输入框"
             L.TextColor3 = Theme.Text
             L.Font = Enum.Font.GothamMedium
             L.TextSize = 11
@@ -952,7 +870,7 @@ function zhiUI:CreateWindow(config)
                 pcall(function() callback(val, e) end)
             end))
 
-            Lib:RegisterSearchable(IFrame, cfg.Text or cfg.Name or "Input", Page)
+            Lib:RegisterSearchable(IFrame, cfg.Text or cfg.Name or "输入框", Page)
             if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
                 Lib.Flags[cfg.Flag] = cfg.Default
@@ -964,151 +882,14 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 添加 ColorPicker：点击展开 RGB 三条滑条 + 预览色块
-        function Elements:AddColorPicker(cfg)
-            local default = cfg.Default or Color3.fromRGB(255, 255, 255)
-            local callback = cfg.Callback or function() end
-            local current = default
-
-            local CFrame = Instance.new("Frame", Page)
-            CFrame.Size = UDim2.new(0.96, 0, 0, 34)
-            CFrame.BackgroundColor3 = Theme.Card
-            CFrame.BackgroundTransparency = 0.2
-            CFrame.ClipsDescendants = true
-            Instance.new("UICorner", CFrame).CornerRadius = UDim.new(0, 6)
-
-            local L = Instance.new("TextLabel", CFrame)
-            L.Size = UDim2.new(0.55, 0, 0, 34)
-            L.Position = UDim2.fromOffset(10, 0)
-            L.BackgroundTransparency = 1
-            L.Text = cfg.Text or cfg.Name or "颜色"
-            L.TextColor3 = Theme.Text
-            L.Font = Enum.Font.GothamMedium
-            L.TextSize = 11
-            L.TextXAlignment = Enum.TextXAlignment.Left
-
-            local Preview = Instance.new("TextButton", CFrame)
-            Preview.Size = UDim2.fromOffset(28, 18)
-            Preview.Position = UDim2.new(1, -38, 0, 8)
-            Preview.BackgroundColor3 = current
-            Preview.Text = ""
-            Preview.AutoButtonColor = false
-            Instance.new("UICorner", Preview).CornerRadius = UDim.new(0, 4)
-            local pStroke = Instance.new("UIStroke", Preview)
-            pStroke.Color = Theme.Border
-            pStroke.Transparency = Theme.BorderTrans
-
-            local Panel = Instance.new("Frame", CFrame)
-            Panel.Size = UDim2.new(0.96, 0, 0, 90)
-            Panel.Position = UDim2.fromOffset(0, 34)
-            Panel.BackgroundTransparency = 1
-
-            local expanded = false
-            local onChannelChange -- 前向声明为局部变量，避免多个 ColorPicker 实例互相覆盖
-            local function MakeChannel(labelText, order, initial)
-                local Row = Instance.new("Frame", Panel)
-                Row.Size = UDim2.new(1, 0, 0, 26)
-                Row.Position = UDim2.fromOffset(0, (order - 1) * 28)
-                Row.BackgroundTransparency = 1
-
-                local RL = Instance.new("TextLabel", Row)
-                RL.Size = UDim2.fromOffset(16, 20)
-                RL.BackgroundTransparency = 1
-                RL.Text = labelText
-                RL.TextColor3 = Theme.TextSecondary
-                RL.Font = Enum.Font.GothamBold
-                RL.TextSize = 10
-
-                local Bar = Instance.new("Frame", Row)
-                Bar.Size = UDim2.new(1, -30, 0, 4)
-                Bar.Position = UDim2.fromOffset(20, 9)
-                Bar.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
-                Instance.new("UICorner", Bar).CornerRadius = UDim.new(1, 0)
-
-                local Fill = Instance.new("Frame", Bar)
-                Fill.Size = UDim2.fromScale(initial / 255, 1)
-                Fill.BackgroundColor3 = Theme.Accent
-                Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
-
-                local value = initial
-                local dragging = false
-                local function UpdateChannel(input)
-                    local mousePos = input and input.Position.X or UserInputService:GetMouseLocation().X
-                    local p = math.clamp((mousePos - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-                    Fill.Size = UDim2.fromScale(p, 1)
-                    value = math.floor(p * 255)
-                    return value
-                end
-
-                table.insert(Lib.Connections, Row.InputBegan:Connect(function(i)
-                    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                        dragging = true
-                    end
-                end))
-                table.insert(Lib.Connections, UserInputService.InputChanged:Connect(function(i)
-                    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-                        UpdateChannel(i)
-                        onChannelChange()
-                    end
-                end))
-                table.insert(Lib.Connections, UserInputService.InputEnded:Connect(function(i)
-                    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-                        if dragging then dragging = false; onChannelChange() end
-                    end
-                end))
-
-                return {
-                    Get = function() return value end,
-                    Set = function(v)
-                        value = v
-                        Fill.Size = UDim2.fromScale(v / 255, 1)
-                    end
-                }
-            end
-
-            local RChan, GChan, BChan
-            onChannelChange = function()
-                current = Color3.fromRGB(RChan.Get(), GChan.Get(), BChan.Get())
-                Preview.BackgroundColor3 = current
-                if cfg.Flag then Lib.Flags[cfg.Flag] = current end
-                pcall(function() callback(current) end)
-            end
-
-            RChan = MakeChannel("R", 1, math.floor(default.R * 255))
-            GChan = MakeChannel("G", 2, math.floor(default.G * 255))
-            BChan = MakeChannel("B", 3, math.floor(default.B * 255))
-
-            table.insert(Lib.Connections, Preview.MouseButton1Click:Connect(function()
-                expanded = not expanded
-                TweenService:Create(CFrame, TweenInfo.new(0.2), {Size = expanded and UDim2.new(0.96, 0, 0, 128) or UDim2.new(0.96, 0, 0, 34)}):Play()
-            end))
-
-            Lib:RegisterSearchable(CFrame, cfg.Text or cfg.Name or "颜色", Page)
-            if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
-            if cfg.Flag then
-                Lib.Flags[cfg.Flag] = current
-                Lib.FlagObjects[cfg.Flag] = {
-                    Get = function() return current end,
-                    Set = function(v)
-                        current = v
-                        Preview.BackgroundColor3 = v
-                        RChan.Set(math.floor(v.R * 255))
-                        GChan.Set(math.floor(v.G * 255))
-                        BChan.Set(math.floor(v.B * 255))
-                    end
-                }
-            end
-            return Elements
-        end
-
-        -- 添加 Keybind：点击后监听下一次按键作为绑定值
+        -- Keybind
         function Elements:AddKeybind(cfg)
             local currentKey = cfg.Default or Enum.KeyCode.Unknown
             local callback = cfg.Callback or function() end
             local listening = false
 
             local KFrame = Instance.new("Frame", Page)
-            KFrame.Size = UDim2.new(0.96, 0, 0, 34)
+            KFrame.Size = UDim2.new(0.96, 0, 0, 32)
             KFrame.BackgroundColor3 = Theme.Card
             KFrame.BackgroundTransparency = 0.2
             Instance.new("UICorner", KFrame).CornerRadius = UDim.new(0, 6)
@@ -1117,15 +898,15 @@ function zhiUI:CreateWindow(config)
             L.Size = UDim2.new(0.6, 0, 1, 0)
             L.Position = UDim2.fromOffset(10, 0)
             L.BackgroundTransparency = 1
-            L.Text = cfg.Text or cfg.Name or "按键"
+            L.Text = cfg.Text or cfg.Name or "按键绑定"
             L.TextColor3 = Theme.Text
             L.Font = Enum.Font.GothamMedium
             L.TextSize = 11
             L.TextXAlignment = Enum.TextXAlignment.Left
 
             local KeyBtn = Instance.new("TextButton", KFrame)
-            KeyBtn.Size = UDim2.fromOffset(70, 22)
-            KeyBtn.Position = UDim2.new(1, -80, 0.5, -11)
+            KeyBtn.Size = UDim2.fromOffset(70, 20)
+            KeyBtn.Position = UDim2.new(1, -80, 0.5, -10)
             KeyBtn.BackgroundColor3 = Theme.Sidebar
             KeyBtn.Text = currentKey.Name
             KeyBtn.TextColor3 = Theme.Accent
@@ -1137,7 +918,7 @@ function zhiUI:CreateWindow(config)
             table.insert(Lib.Connections, KeyBtn.MouseButton1Click:Connect(function()
                 if listening then return end
                 listening = true
-                KeyBtn.Text = "..."
+                KeyBtn.Text = "按下按键..."
             end))
 
             table.insert(Lib.Connections, UserInputService.InputBegan:Connect(function(input, gpe)
@@ -1152,7 +933,7 @@ function zhiUI:CreateWindow(config)
                 end
             end))
 
-            Lib:RegisterSearchable(KFrame, cfg.Text or cfg.Name or "按键", Page)
+            Lib:RegisterSearchable(KFrame, cfg.Text or cfg.Name or "按键绑定", Page)
             if cfg.Tooltip then BindTooltip(L, cfg.Tooltip, ScreenGui) end
             if cfg.Flag then
                 Lib.Flags[cfg.Flag] = currentKey
@@ -1167,33 +948,33 @@ function zhiUI:CreateWindow(config)
             return Elements
         end
 
-        -- 批量添加组件
-        function Elements:Add(tbl)
-            if type(tbl) == "table" then
-                for _, item in ipairs(tbl) do
-                    local t = item.Type or item[1]
-                    if t == "Button" then Elements:AddButton(item)
-                    elseif t == "Toggle" then Elements:AddToggle(item)
-                    elseif t == "Slider" then Elements:AddSlider(item)
-                    elseif t == "Dropdown" then Elements:AddDropdown(item)
-                    elseif t == "MultiDropdown" then Elements:AddMultiDropdown(item)
-                    elseif t == "Input" then Elements:AddInput(item)
-                    elseif t == "ColorPicker" then Elements:AddColorPicker(item)
-                    elseif t == "Keybind" then Elements:AddKeybind(item)
-                    end
-                end
-            end
-            return Elements
-        end
-
         return Elements
     end
 
-    -- 清理函数
+    -- 快捷内置设置 Tab
+    function Lib:AddSettingsTab()
+        local SettingsTab = Lib:AddTab("设置")
+        SettingsTab:AddSection("主题切换")
+        SettingsTab:AddDropdown({
+            Text = "选择预设主题",
+            Options = {"PurpleDark", "PurpleLight", "MidnightPurple"},
+            Default = "PurpleDark",
+            Callback = function(val) Lib:SetTheme(val) end
+        })
+        SettingsTab:AddSection("配置文件管理")
+        SettingsTab:AddButton({ Text = "保存当前配置", Callback = function() Lib:SaveConfig() end })
+        SettingsTab:AddButton({ Text = "加载已有配置", Callback = function() Lib:LoadConfig() end })
+        return SettingsTab
+    end
+
     function Lib:Destroy()
         for _, conn in pairs(self.Connections) do
             pcall(function()
-                if conn.Disconnect then conn:Disconnect() end
+                if type(conn) == "table" and conn.Disconnect then
+                    conn:Disconnect()
+                elseif type(conn) == "function" then
+                    conn()
+                end
             end)
         end
         pcall(function() ScreenGui:Destroy() end)
@@ -1202,4 +983,4 @@ function zhiUI:CreateWindow(config)
     return Lib
 end
 
-return zhiUI
+return vsUI
