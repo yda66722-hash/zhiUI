@@ -263,13 +263,21 @@ function zhiUI:CreateWindow(config)
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.BackgroundTransparency = 1
         Page.Visible = false
-        Page.ScrollBarThickness = 0
+        Page.BorderSizePixel = 0
+        Page.ScrollBarThickness = 4
+        Page.ScrollBarImageColor3 = Theme.Accent
+        Page.ScrollBarImageTransparency = 0.3
+        Page.ScrollingDirection = Enum.ScrollingDirection.Y
+        Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+        Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
         Page.CanvasSize = UDim2.new(0, 0, 0, 0)
+
         local PageLayout = Instance.new("UIListLayout", Page)
         PageLayout.Padding = UDim.new(0, 8)
-        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.fromOffset(0, PageLayout.AbsoluteContentSize.Y + 10)
-        end)
+        PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        local Pad = Instance.new("UIPadding", Page)
+        Pad.PaddingBottom = UDim.new(0, 14)
 
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(Container:GetChildren()) do v.Visible = false end
