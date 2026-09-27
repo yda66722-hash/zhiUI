@@ -466,6 +466,176 @@ function zhiUI:CreateWindow(config)
             end
         end
 
+        -- ★★★ 新增：多选下拉框 ★★★
+        -- 用法: local dd = Elements:AddMultiDropdown("选择", {"A","B","C"}, {"A"}, function(tbl) print(#tbl) end)
+        --       dd:GetSelected()  -> 返回选中列表
+        --       dd:SetSelected({"B","C"})
+        --       dd:Clear()
+        function Elements:AddMultiDropdown(text, list, default, callback)
+            -- 兼容不传 default 的写法
+            if type(default) == "function" and callback == nil then
+                callback = default
+                default = {}
+            end
+            list = list or {}
+            default = default or {}
+            callback = callback or function() end
+
+            local ITEM_H, HEAD_H = 30, 44
+            local MAX_LIST_H = 160
+
+            local selectedSet = {}
+            for _, v in ipairs(default) do
+                selectedSet[v] = true
+            end
+            local selected = {}
+
+            local DFrame = Instance.new("Frame", Page)
+            DFrame.Size = UDim2.new(0.95, 0, 0, HEAD_H)
+            DFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            DFrame.BackgroundTransparency = 0.4
+            DFrame.ClipsDescendants = true
+            Instance.new("UICorner", DFrame).CornerRadius = UDim.new(0, 9)
+
+            local Btn = Instance.new("TextButton", DFrame)
+            Btn.Size = UDim2.new(1, 0, 0, HEAD_H)
+            Btn.BackgroundTransparency = 1
+            Btn.TextColor3 = Theme.Text
+            Btn.Font = Enum.Font.GothamBold
+            Btn.TextSize = 14
+            Btn.TextTruncate = Enum.TextTruncate.AtEnd
+            Btn.Text = text .. " : 未选择"
+            local BtnPad = Instance.new("UIPadding", Btn)
+            BtnPad.PaddingLeft = UDim.new(0, 14)
+            BtnPad.PaddingRight = UDim.new(0, 14)
+
+            local listH = math.min(#list * ITEM_H, MAX_LIST_H)
+
+            local ListFrame = Instance.new("ScrollingFrame", DFrame)
+            ListFrame.Size = UDim2.new(1, 0, 0, listH)
+            ListFrame.Position = UDim2.fromOffset(0, HEAD_H)
+            ListFrame.BackgroundTransparency = 1
+            ListFrame.BorderSizePixel = 0
+            ListFrame.ScrollBarThickness = 4
+            ListFrame.ScrollBarImageColor3 = Theme.Accent
+            ListFrame.ScrollBarImageTransparency = 0.3
+            ListFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+            ListFrame.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+            ListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+            ListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+            local LL = Instance.new("UIListLayout", ListFrame)
+            LL.SortOrder = Enum.SortOrder.LayoutOrder
+
+            local optionButtons = {}
+
+            local function RebuildSelected()
+                selected = {}
+                for _, item in ipairs(list) do
+                    if selectedSet[item] then
+                        table.insert(selected, item)
+                    end
+                end
+            end
+
+            local function UpdateHeader()
+                if #selected == 0 then
+                    Btn.Text = text .. " : 未选择"
+                else
+                    Btn.Text = text .. " : " .. table.concat(selected, ", ")
+                end
+            end
+
+            local function RefreshOption(v)
+                local o = optionButtons[v]
+                if not o then return end
+                local on = selectedSet[v] == true
+                TweenService:Create(o.dot, TweenInfo.new(0.2), {
+                    BackgroundColor3 = on and Theme.Accent or Color3.fromRGB(70, 70, 70)
+                }):Play()
+                o.lbl.TextColor3 = on and Theme.Text or Theme.TextSecondary
+            end
+
+            for i, v in ipairs(list) do
+                local opt = Instance.new("TextButton", ListFrame)
+                opt.Size = UDim2.new(1, 0, 0, ITEM_H)
+                opt.BackgroundTransparency = 1
+                opt.Text = ""
+                opt.AutoButtonColor = false
+                opt.LayoutOrder = i
+
+                local dot = Instance.new("Frame", opt)
+                dot.Size = UDim2.fromOffset(14, 14)
+                dot.Position = UDim2.new(0, 12, 0.5, -7)
+                dot.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                Instance.new("UICorner", dot).CornerRadius = UDim.new(0, 4)
+
+                local lbl = Instance.new("TextLabel", opt)
+                lbl.Size = UDim2.new(1, -40, 1, 0)
+                lbl.Position = UDim2.fromOffset(34, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = tostring(v)
+                lbl.TextColor3 = Theme.TextSecondary
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 13
+                lbl.TextXAlignment = "Left"
+                lbl.TextTruncate = Enum.TextTruncate.AtEnd
+
+                optionButtons[v] = { dot = dot, lbl = lbl }
+
+                opt.MouseButton1Click:Connect(function()
+                    selectedSet[v] = (not selectedSet[v]) or nil
+                    RefreshOption(v)
+                    RebuildSelected()
+                    UpdateHeader()
+                    callback({table.unpack(selected)})
+                end)
+            end
+
+            RebuildSelected()
+            UpdateHeader()
+            for _, v in ipairs(list) do RefreshOption(v) end
+
+            local dropped = false
+            local function SetOpen(open)
+                if open == nil then open = not dropped end
+                dropped = open
+                TweenService:Create(DFrame, TweenInfo.new(0.35), {
+                    Size = dropped and UDim2.new(0.95, 0, 0, HEAD_H + listH)
+                                 or UDim2.new(0.95, 0, 0, HEAD_H)
+                }):Play()
+            end
+
+            Btn.MouseButton1Click:Connect(function()
+                SetOpen()
+            end)
+
+            local obj = {}
+            function obj:GetSelected()
+                return {table.unpack(selected)}
+            end
+            function obj:SetSelected(newList)
+                selectedSet = {}
+                for _, v in ipairs(newList or {}) do
+                    if optionButtons[v] then selectedSet[v] = true end
+                end
+                RebuildSelected()
+                UpdateHeader()
+                for _, v in ipairs(list) do RefreshOption(v) end
+            end
+            function obj:Clear()
+                obj:SetSelected({})
+            end
+            function obj:SetOpen(open)
+                SetOpen(open)
+            end
+            function obj:IsOpen()
+                return dropped
+            end
+            return obj
+        end
+        -- ★★★ 多选下拉框结束 ★★★
+
         function Elements:AddInput(text, placeholder, callback)
             callback = callback or function() end
             local IFrame = Instance.new("Frame", Page)
